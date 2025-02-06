@@ -17,6 +17,13 @@
       <li>Ability to drop directories to view and selectively download contained files</li>
       <li>Share data from the clipboard, automatically detect if the clipboard contains an image, or a text, note that pasting files will only send paths as text (if the app doesn't have read permission), so its better to drop them instead</li>
     </ul>
+    <p>How it works:</p>
+    <ul>
+      <li>The app creates a temporary HTTP server on your local network</li>
+      <li>Generates a QR code containing the server URL</li>
+      <li>Recipients can access shared content directly through their web browser</li>
+      <li>All sharing happens locally over your network - no internet required</li>
+    </ul>
     <p>Share makes file transfer hassle-free, whether you're sharing documents, images, or any other file type. Simply drop a file into the application. Scan the QR code with another device to initiate the transfer.</p>
   </description>
 
