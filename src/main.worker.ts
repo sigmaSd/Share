@@ -173,6 +173,7 @@ if (import.meta.main) {
             response = await serveDir(req, {
               fsRoot: filePath,
               showDirListing: true,
+              showIndex: false,
             });
             // Clone headers from the original response
             responseHeaders = new Headers(response.headers);
