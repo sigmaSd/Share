@@ -3,13 +3,17 @@ import { postSetup } from "./util.ts";
 
 const searchPath: string[] = [];
 
-const SUPPORTED_VERSIONS = [[3, 12], [3, 11], [3, 10], [3, 9], [3, 8]];
+const SUPPORTED_VERSIONS = [[3, 13], [3, 12], [3, 11], [3, 10], [3, 9], [3, 8]];
 const DENO_PYTHON_PATH = Deno.env.get("DENO_PYTHON_PATH");
 
 if (DENO_PYTHON_PATH) {
   searchPath.push(DENO_PYTHON_PATH);
 } else {
-  if (Deno.build.os === "windows" || Deno.build.os === "linux") {
+  if (
+    Deno.build.os === "windows" || Deno.build.os === "linux" ||
+    // @ts-ignore: users reported that `windows_nt` exists at runtime
+    Deno.build.os === "windows_nt"
+  ) {
     searchPath.push(
       ...SUPPORTED_VERSIONS.map(([major, minor]) =>
         `${Deno.build.os === "linux" ? "lib" : ""}python${major}${
@@ -44,7 +48,7 @@ for (const path of searchPath) {
   } catch (err) {
     if (err instanceof TypeError && !("Bun" in globalThis)) {
       throw new Error(
-        "Cannot load dynamic library because --unstable flag was not set",
+        "Cannot load dynamic library because --unstable-ffi flag was not set",
         { cause: err },
       );
     }

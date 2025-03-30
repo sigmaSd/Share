@@ -1,5 +1,6 @@
 import { serveDir, serveFile } from "jsr:@std/http@0.224.5/file-server";
 import { qrPng } from "jsr:@sigmasd/qrpng@0.1.3";
+import { basename } from "jsr:@std/path@1/basename";
 
 function getLocalAddr() {
   return Deno.networkInterfaces().filter((int) =>
@@ -151,21 +152,31 @@ if (import.meta.main) {
       }
 
       if (filePath) {
-        console.log("[worker] serving file:", filePath);
+        console.log("[worker] serving path:", filePath);
         try {
           const meta = await Deno.stat(filePath);
-          let response;
+          let response: Response;
+          let responseHeaders: Headers;
           if (meta.isFile) {
             response = await serveFile(req, filePath);
+            // Clone headers from the original response
+            responseHeaders = new Headers(response.headers);
+
+            // Suggest original filename for downloads
+            const filename = basename(filePath);
+            const encodedFilename = encodeURIComponent(filename);
+            headers.set(
+              "content-disposition",
+              `attachment; filename*=UTF-8''${encodedFilename}`,
+            );
           } else {
             response = await serveDir(req, {
               fsRoot: filePath,
               showDirListing: true,
             });
+            // Clone headers from the original response
+            responseHeaders = new Headers(response.headers);
           }
-
-          // Clone headers from the original response
-          const responseHeaders = new Headers(response.headers);
 
           // Update headers with the custom headers
           headers.forEach((value, key) => {

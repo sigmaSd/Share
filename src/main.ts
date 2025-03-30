@@ -9,7 +9,7 @@ import {
   kw,
   NamedArgument,
   python,
-} from "jsr:@sigma/gtk-py@0.4.27";
+} from "jsr:@sigma/gtk-py@0.4.28";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");
