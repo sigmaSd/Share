@@ -42,6 +42,12 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.0.0" date="2025-03-30">
+        <description>
+        <p>Suggest correct file names when sharing files</p>
+        <p>Don't serve index.html by default when sharing directories</p>
+        </description>
+    </release>
     <release version="0.1.18" date="2025-02-07">
         <description>
         <p>Document how the sharing works</p>
