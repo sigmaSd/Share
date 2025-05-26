@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --no-lock --no-config -A
-import { $ } from "jsr:@david/dax@0.41.0";
+import { $ } from "jsr:@david/dax@0.43.1";
 
 // get the app version
 const version = await import("../deno.json", { with: { type: "json" } })

@@ -1,4 +1,4 @@
-import { serveDir, serveFile } from "jsr:@std/http@0.224.5/file-server";
+import { serveDir, serveFile } from "jsr:@std/http@1.0.16/file-server";
 import { qrPng } from "jsr:@sigmasd/qrpng@0.1.3";
 import { basename } from "jsr:@std/path@1/basename";
 
