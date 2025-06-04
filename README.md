@@ -25,7 +25,7 @@ and web browser.
 ## Usage
 
 ```
-deno run --reload --allow-all --unstable-ffi https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts
+deno run --reload --allow-all https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts
 ```
 
 ![image](https://github.com/sigmaSd/qr-share/assets/22427111/e8348bcf-1ef9-431f-8cff-145278acb68c)
