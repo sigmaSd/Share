@@ -316,7 +316,7 @@ class MainWindow extends Gtk.ApplicationWindow {
   #onTextReceived = (result: any, mimeType: string) => {
     const text = this.#clipboard.read_text_finish(result).valueOf();
     if (text) {
-      if (mimeType.startsWith("text/uri-list")) {
+      if (mimeType.startsWith("text/uri-list") || text.startsWith("file://")) {
         // This is a file URI
         const filePath = text.replace("file://", "").trim();
         const fileName = filePath.split("/").pop();
