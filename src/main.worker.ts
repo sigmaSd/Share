@@ -1,12 +1,7 @@
 import { serveDir, serveFile } from "jsr:@std/http@1.0.16/file-server";
 import { qrPng } from "jsr:@sigmasd/qrpng@0.1.3";
 import { basename } from "jsr:@std/path@1/basename";
-
-function getLocalAddr() {
-  return Deno.networkInterfaces().filter((int) =>
-    int.name !== "lo" && int.family === "IPv4"
-  ).at(0)?.address || "localhost";
-}
+import assert from "node:assert";
 
 const emptyPage = `\
 <!DOCTYPE html>
@@ -115,12 +110,15 @@ if (import.meta.main) {
   let filePath: string | null = null;
   let textContent: string | null = null;
   let qrPath: string;
+  let hostname: string | null = null;
+  let server: Deno.HttpServer;
 
-  const startServer = () => {
-    Deno.serve({
+  const startServer = (hostname: string) => {
+    return Deno.serve({
       port: 0,
+      hostname,
       onListen: async (addr) => {
-        const serverAddr = `http://${getLocalAddr()}:${addr.port}`;
+        const serverAddr = `http://${hostname}:${addr.port}`;
         console.log("[worker] HTTP server running. Access it at:", serverAddr);
         await Deno.writeFile(
           qrPath,
@@ -209,7 +207,7 @@ if (import.meta.main) {
   };
 
   //@ts-ignore worker
-  self.onmessage = (event) => {
+  self.onmessage = async (event) => {
     console.log("[worker] received msg:", event.data);
     switch (event.data.type) {
       case "file":
@@ -222,7 +220,12 @@ if (import.meta.main) {
         break;
       case "qrPath":
         qrPath = event.data.path;
-        startServer();
+        break;
+      case "hostname":
+        hostname = event.data.hostname;
+        assert(hostname);
+        await server?.shutdown();
+        server = startServer(hostname);
         break;
     }
   };

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-all --unstable-ffi
+#!/usr/bin/env -S deno run --allow-all
 import {
   type Adw1_ as Adw_,
   Callback,
@@ -11,6 +11,8 @@ import {
   python,
 } from "jsr:@sigma/gtk-py@0.4.29";
 import meta from "../deno.json" with { type: "json" };
+import ipaddr from "npm:ipaddr.js@2.2.0";
+import assert from "node:assert";
 
 const gi = python.import("gi");
 gi.require_version("Gtk", "4.0");
@@ -25,10 +27,11 @@ const worker = new Worker(new URL("./main.worker.ts", import.meta.url).href, {
   type: "module",
 });
 const qrPath = Deno.makeTempFileSync();
+worker.postMessage({ type: "qrPath", path: qrPath });
 
 class MainWindow extends Gtk.ApplicationWindow {
   #app: Adw_.Application;
-  #url: string;
+  #url?: string;
   #label: Gtk_.Label;
   #picture: Gtk_.Picture;
   #dropTarget: Gtk_.DropTarget;
@@ -38,9 +41,18 @@ class MainWindow extends Gtk.ApplicationWindow {
   #urlLabel!: Gtk_.Label;
   #copyButton!: Gtk_.Button;
 
-  constructor(kwArg: NamedArgument, url: string) {
+  constructor(kwArg: NamedArgument) {
     super(kwArg);
-    this.#url = url;
+
+    worker.onmessage = (event) => {
+      const data = event.data;
+      if (data.type === "start") {
+        this.#url = data.url;
+        this.#urlLabel.set_text(this.#url!);
+        this.#picture.set_filename(qrPath);
+      }
+    };
+
     this.set_title("Share");
     this.set_default_size(400, 400);
     this.connect("close-request", python.callback(this.#onCloseRequest));
@@ -79,7 +91,27 @@ class MainWindow extends Gtk.ApplicationWindow {
   padding: 5px;
   background-color: #f5f5f5;
   border-radius: 5px;
-}`);
+}
+.net-box {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333333;
+  margin-top: 10px;
+  padding: 5px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+}
+.error-box {
+  font-size: 18px;
+  font-weight: bold;
+  color: red;
+  margin-top: 10px;
+  padding: 5px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+}
+
+`);
     Gtk.StyleContext.add_provider_for_display(
       Gdk.Display.get_default(),
       cssProvider,
@@ -94,6 +126,35 @@ class MainWindow extends Gtk.ApplicationWindow {
     );
     this.#label.get_style_context().add_class("instruction-label");
 
+    const interfaces = Array.from((function* () {
+      for (const int of Deno.networkInterfaces()) {
+        const address = int.address;
+        const range = ipaddr.parse(address).range();
+        if (
+          range === "private" || range === "uniqueLocal" || range === "unicast"
+        ) {
+          yield `${address} (${int.family} ${range})`;
+        }
+      }
+    })());
+    if (interfaces.length === 0) {
+      // show a gtk error an exit
+      const errorBox = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
+      errorBox.get_style_context().add_class("error-box");
+      errorBox.append(Gtk.Label(kw`label=${"No network interfaces found"}`));
+      this.set_child(errorBox);
+      return;
+    }
+    const netBox = Gtk.DropDown.new_from_strings(interfaces);
+    netBox.connect("notify::selected", this.#onNetBoxActivated);
+    netBox.get_style_context().add_class("net-box");
+
+    {
+      const text = netBox.get_selected_item().get_string().valueOf();
+      const hostname = text.split("(")[0].trim();
+      worker.postMessage({ type: "hostname", hostname });
+    }
+
     this.#picture = Gtk.Picture();
     this.#picture.set_filename(qrPath);
     this.#picture.set_size_request(200, 200);
@@ -104,6 +165,7 @@ class MainWindow extends Gtk.ApplicationWindow {
     this.#contentBox = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
     this.#contentBox.get_style_context().add_class("content-box");
     this.#contentBox.append(this.#label);
+    this.#contentBox.append(netBox);
     this.#contentBox.append(this.#picture);
     this.#contentBox.append(this.#urlBox);
 
@@ -121,6 +183,12 @@ class MainWindow extends Gtk.ApplicationWindow {
     keyController.connect("key-pressed", this.#onKeyPressed);
     this.add_controller(keyController);
   }
+  // deno-lint-ignore no-explicit-any
+  #onNetBoxActivated = python.callback((_: any, netBox: DropDown) => {
+    const text = netBox.get_selected_item().get_string().valueOf();
+    const address = text.split("(")[0].trim();
+    worker.postMessage({ type: "hostname", hostname: address });
+  });
 
   #createUrlBox = () => {
     this.#urlBox = Gtk.Box(kw`orientation=${Gtk.Orientation.HORIZONTAL}`);
@@ -135,6 +203,7 @@ class MainWindow extends Gtk.ApplicationWindow {
     this.#copyButton.connect(
       "clicked",
       python.callback(() => {
+        assert(this.#url);
         this.#clipboard.set(this.#url);
       }),
     );
@@ -363,48 +432,59 @@ class MainWindow extends Gtk.ApplicationWindow {
 
 class App extends Adw.Application {
   #win: MainWindow | undefined;
-  #url: string;
 
-  constructor(kwArg: NamedArgument, url: string) {
+  constructor(kwArg: NamedArgument) {
     super(kwArg);
-    this.#url = url;
     this.connect("activate", this.onActivate);
   }
 
   onActivate = python.callback((_kwarg, app: Adw_.Application) => {
     this.#win = new MainWindow(
       new NamedArgument("application", app),
-      this.#url,
     );
     this.#win.present();
   });
 }
 
 if (import.meta.main) {
-  worker.postMessage({ type: "qrPath", path: qrPath });
-  worker.onmessage = (event) => {
-    console.log("[main] received msg:", event.data);
-    switch (event.data.type) {
-      case "start": {
-        const app = new App(
-          kw`application_id=${"io.github.sigmasd.share"}`,
-          event.data.url,
-        );
-        const signal = python.import("signal");
-        GLib.unix_signal_add(
-          GLib.PRIORITY_HIGH,
-          signal.SIGINT,
-          python.callback(() => {
-            worker.terminate();
-            Deno.removeSync(qrPath);
-            app.quit();
-          }),
-        );
-        app.run(Deno.args);
-        break;
+  const app = new App(
+    kw`application_id=${"io.github.sigmasd.share"}`,
+  );
+  app.register();
+  app.activate();
+
+  app.connect(
+    "window-removed",
+    python.callback((_, app) => {
+      worker.terminate();
+      app.quit();
+      Deno.exit();
+    }),
+  );
+
+  const signal = python.import("signal");
+  GLib.unix_signal_add(
+    GLib.PRIORITY_HIGH,
+    signal.SIGINT,
+    python.callback(() => {
+      worker.terminate();
+      try {
+        Deno.removeSync(qrPath);
+      } catch {
+        // Ignore if file already removed
       }
+      worker.terminate();
+      app.quit();
+      Deno.exit();
+    }),
+  );
+
+  const mainContext = GLib.MainContext.default();
+  setInterval(() => {
+    while (mainContext.pending().valueOf()) {
+      mainContext.iteration(false);
     }
-  };
+  }, 1);
 }
 
 function canAccessFile(path: string) {
