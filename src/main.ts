@@ -2,6 +2,7 @@
 import {
   type Adw1_ as Adw_,
   Callback,
+  DenoGLibEventLoop,
   type Gdk4_ as Gdk_,
   type Gio2_ as Gio_,
   type GLib2_ as GLib_,
@@ -9,7 +10,7 @@ import {
   kw,
   NamedArgument,
   python,
-} from "jsr:@sigma/gtk-py@0.4.29";
+} from "jsr:@sigma/gtk-py@0.6.3";
 import meta from "../deno.json" with { type: "json" };
 import ipaddr from "npm:ipaddr.js@2.2.0";
 import assert from "node:assert";
@@ -33,9 +34,9 @@ class MainWindow extends Gtk.ApplicationWindow {
   #app: Adw_.Application;
   #url?: string;
   #label: Gtk_.Label;
-  #picture: Gtk_.Picture;
-  #dropTarget: Gtk_.DropTarget;
-  #contentBox: Gtk_.Box;
+  #picture!: Gtk_.Picture;
+  #dropTarget!: Gtk_.DropTarget;
+  #contentBox!: Gtk_.Box;
   #clipboard: Gdk_.Clipboard;
   #urlBox!: Gtk_.Box;
   #urlLabel!: Gtk_.Label;
@@ -184,7 +185,7 @@ class MainWindow extends Gtk.ApplicationWindow {
     this.add_controller(keyController);
   }
   // deno-lint-ignore no-explicit-any
-  #onNetBoxActivated = python.callback((_: any, netBox: DropDown) => {
+  #onNetBoxActivated = python.callback((_: any, netBox: Gtk_.DropDown) => {
     const text = netBox.get_selected_item().get_string().valueOf();
     const address = text.split("(")[0].trim();
     worker.postMessage({ type: "hostname", hostname: address });
@@ -479,12 +480,8 @@ if (import.meta.main) {
     }),
   );
 
-  const mainContext = GLib.MainContext.default();
-  setInterval(() => {
-    while (mainContext.pending().valueOf()) {
-      mainContext.iteration(false);
-    }
-  }, 1);
+  const eventLoop = new DenoGLibEventLoop(GLib);
+  eventLoop.start();
 }
 
 function canAccessFile(path: string) {
