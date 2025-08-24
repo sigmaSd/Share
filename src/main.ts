@@ -26,7 +26,7 @@ const worker = new Worker(new URL("./main.worker.ts", import.meta.url).href, {
 });
 const qrPath = Deno.makeTempFileSync();
 
-class MainWindow extends Gtk.ApplicationWindow {
+class MainWindow extends Adw.ApplicationWindow {
   #app: Adw_.Application;
   #url: string;
   #label: Gtk_.Label;
@@ -47,7 +47,6 @@ class MainWindow extends Gtk.ApplicationWindow {
 
     this.#app = kwArg.value.valueOf() as Adw_.Application;
 
-    this.#createHeaderBar();
     this.#createShortcuts();
 
     // Initialize clipboard
@@ -79,6 +78,25 @@ class MainWindow extends Gtk.ApplicationWindow {
   padding: 5px;
   background-color: #f5f5f5;
   border-radius: 5px;
+}
+/* Ensure header bar is visible in light mode */
+headerbar {
+  background: @headerbar_bg_color;
+  border-bottom: 1px solid @borders;
+  box-shadow: inset 0 1px @headerbar_backdrop_color;
+}
+/* Fallback for better contrast in light mode */
+@media (prefers-color-scheme: light) {
+  headerbar {
+    background: linear-gradient(to bottom, #fafafa, #ededed);
+    border-bottom: 1px solid #d0d0d0;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  headerbar {
+    background: @headerbar_bg_color;
+    border-bottom: 1px solid @headerbar_border_color;
+  }
 }`);
     Gtk.StyleContext.add_provider_for_display(
       Gdk.Display.get_default(),
@@ -107,7 +125,12 @@ class MainWindow extends Gtk.ApplicationWindow {
     this.#contentBox.append(this.#picture);
     this.#contentBox.append(this.#urlBox);
 
-    this.set_child(this.#contentBox);
+    // Set up the ToolbarView with header and content
+    const header = this.#createHeaderBar();
+    const toolbarView = Adw.ToolbarView();
+    toolbarView.add_top_bar(header);
+    toolbarView.set_content(this.#contentBox);
+    this.set_content(toolbarView);
 
     this.#dropTarget = Gtk.DropTarget.new(
       Gio.File,
@@ -147,8 +170,7 @@ class MainWindow extends Gtk.ApplicationWindow {
   };
 
   #createHeaderBar = () => {
-    const header = Gtk.HeaderBar();
-    this.set_titlebar(header);
+    const header = Adw.HeaderBar();
     // menu
     const menu = Gio.Menu.new();
     const popover = Gtk.PopoverMenu();
@@ -162,6 +184,8 @@ class MainWindow extends Gtk.ApplicationWindow {
 
     this.#createAction("about", this.#showAbout);
     menu.append("About Share", "app.about");
+
+    return header;
   };
 
   #createShortcuts = () => {
