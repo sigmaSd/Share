@@ -115,6 +115,7 @@ if (import.meta.main) {
   let filePath: string | null = null;
   let textContent: string | null = null;
   let qrPath: string;
+  let isSharing: boolean = true;
 
   const startServer = () => {
     Deno.serve({
@@ -137,6 +138,50 @@ if (import.meta.main) {
         "Pragma": "no-cache",
         "Expires": "0",
       });
+
+      // If sharing is disabled, return a message
+      if (!isSharing) {
+        headers.set("Content-Type", "text/html");
+        const stoppedPage = `\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sharing Stopped</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .message {
+      text-align: center;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="message">
+    <h1>🛑 Sharing Stopped</h1>
+    <p>The server is currently not sharing any content.</p>
+    <p>Please enable sharing in the application to access files.</p>
+  </div>
+</body>
+</html>`;
+        return new Response(stoppedPage, {
+          status: 503,
+          headers: headers,
+        });
+      }
 
       if (!filePath && !textContent) {
         headers.set("Content-Type", "text/html");
@@ -223,6 +268,14 @@ if (import.meta.main) {
       case "qrPath":
         qrPath = event.data.path;
         startServer();
+        break;
+      case "start-sharing":
+        console.log("[worker] Starting sharing");
+        isSharing = true;
+        break;
+      case "stop-sharing":
+        console.log("[worker] Stopping sharing");
+        isSharing = false;
         break;
     }
   };

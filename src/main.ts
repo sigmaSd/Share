@@ -9,7 +9,7 @@ import {
   kw,
   NamedArgument,
   python,
-} from "jsr:@sigma/gtk-py@0.6.4";
+} from "jsr:@sigma/gtk-py@0.6.5";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");
@@ -37,6 +37,9 @@ class MainWindow extends Adw.ApplicationWindow {
   #urlBox!: Gtk_.Box;
   #urlLabel!: Gtk_.Label;
   #copyButton!: Gtk_.Button;
+  #shareButton!: Gtk_.Button;
+  #statusIndicator!: Gtk_.Label;
+  #isSharing: boolean = true;
 
   constructor(kwArg: NamedArgument, url: string) {
     super(kwArg);
@@ -79,6 +82,37 @@ class MainWindow extends Adw.ApplicationWindow {
   background-color: #f5f5f5;
   border-radius: 5px;
 }
+.share-button {
+  margin: 10px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+.share-button.active {
+  background-color: #28a745;
+  color: white;
+}
+.share-button.inactive {
+  background-color: #dc3545;
+  color: white;
+}
+.status-indicator {
+  font-size: 14px;
+  font-weight: bold;
+  margin: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+.status-active {
+  color: #28a745;
+  background-color: rgba(40, 167, 69, 0.1);
+}
+.status-inactive {
+  color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.1);
+}
 /* Ensure header bar is visible in light mode */
 headerbar {
   background: @headerbar_bg_color;
@@ -95,7 +129,7 @@ headerbar {
     this.get_style_context().add_class("main-window");
 
     this.#label = Gtk.Label(
-      kw`label=${"Drop a file here or press Ctrl+V to paste"}`,
+      kw`label=${"Drop a file here, press Ctrl+V to paste, or Ctrl+O to browse files"}`,
     );
     this.#label.get_style_context().add_class("instruction-label");
 
@@ -105,12 +139,15 @@ headerbar {
     this.#picture.set_keep_aspect_ratio(true);
 
     this.#createUrlBox();
+    this.#createShareControls();
 
     this.#contentBox = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
     this.#contentBox.get_style_context().add_class("content-box");
     this.#contentBox.append(this.#label);
     this.#contentBox.append(this.#picture);
     this.#contentBox.append(this.#urlBox);
+    this.#contentBox.append(this.#shareButton);
+    this.#contentBox.append(this.#statusIndicator);
 
     // Set up the ToolbarView with header and content
     const header = this.#createHeaderBar();
@@ -156,6 +193,56 @@ headerbar {
     this.#urlBox.get_style_context().add_class("url-box");
   };
 
+  #createShareControls = () => {
+    this.#shareButton = Gtk.Button(kw`label="Stop Sharing"`);
+    this.#shareButton.get_style_context().add_class("share-button");
+    this.#shareButton.get_style_context().add_class("inactive");
+    this.#shareButton.set_tooltip_text("Toggle sharing on/off (Ctrl+T)");
+    this.#shareButton.connect(
+      "clicked",
+      python.callback(() => {
+        this.#toggleSharing();
+      }),
+    );
+
+    this.#statusIndicator = Gtk.Label(kw`label="● Sharing Active"`);
+    this.#statusIndicator.get_style_context().add_class("status-indicator");
+    this.#statusIndicator.get_style_context().add_class("status-active");
+    this.#statusIndicator.set_halign(Gtk.Align.CENTER);
+
+    // Update initial UI state
+    this.#updateSharingUI();
+  };
+
+  #updateSharingUI = () => {
+    if (this.#isSharing) {
+      this.#shareButton.set_label("Stop Sharing");
+      this.#shareButton.get_style_context().remove_class("active");
+      this.#shareButton.get_style_context().add_class("inactive");
+      this.#statusIndicator.set_text("● Sharing Active");
+      this.#statusIndicator.get_style_context().remove_class("status-inactive");
+      this.#statusIndicator.get_style_context().add_class("status-active");
+    } else {
+      this.#shareButton.set_label("Start Sharing");
+      this.#shareButton.get_style_context().remove_class("inactive");
+      this.#shareButton.get_style_context().add_class("active");
+      this.#statusIndicator.set_text("● Sharing Stopped");
+      this.#statusIndicator.get_style_context().remove_class("status-active");
+      this.#statusIndicator.get_style_context().add_class("status-inactive");
+    }
+  };
+
+  #toggleSharing = () => {
+    this.#isSharing = !this.#isSharing;
+    this.#updateSharingUI();
+
+    if (this.#isSharing) {
+      worker.postMessage({ type: "start-sharing" });
+    } else {
+      worker.postMessage({ type: "stop-sharing" });
+    }
+  };
+
   #createHeaderBar = () => {
     const header = Adw.HeaderBar();
     // menu
@@ -169,7 +256,8 @@ headerbar {
     hamburger.set_tooltip_text("Main Menu");
     header.pack_start(hamburger);
 
-    this.#createAction("about", this.#showAbout);
+    menu.append("Open File (Ctrl+O)", "app.open-file");
+    menu.append("Toggle Sharing (Ctrl+T)", "app.toggle-sharing");
     menu.append("About Share", "app.about");
 
     return header;
@@ -192,6 +280,25 @@ headerbar {
       }),
       ["<primary>w"],
     );
+    this.#createAction(
+      "open-file",
+      python.callback(() => {
+        this.#openFileDialog();
+      }),
+      ["<primary>o"],
+    );
+    this.#createAction(
+      "toggle-sharing",
+      python.callback(() => {
+        this.#toggleSharing();
+      }),
+      ["<primary>t"],
+    );
+
+    // Create actions after methods are defined
+    this.#createAction("about", this.#showAbout);
+    this.#createAction("open-file", python.callback(this.#openFileDialog));
+    this.#createAction("toggle-sharing", python.callback(this.#toggleSharing));
   };
 
   #createAction = (name: string, callback: Callback, shortcuts?: [string]) => {
@@ -199,6 +306,54 @@ headerbar {
     action.connect("activate", callback);
     this.#app.add_action(action);
     if (shortcuts) this.#app.set_accels_for_action(`app.${name}`, shortcuts);
+  };
+
+  #openFileDialog = () => {
+    const dialog = Gtk.FileDialog.new();
+    dialog.set_title("Select a file to share");
+
+    // Add file filters for common file types
+    const filters = Gio.ListStore.new(Gtk.FileFilter);
+
+    const allFilesFilter = Gtk.FileFilter.new();
+    allFilesFilter.set_name("All Files");
+    allFilesFilter.add_pattern("*");
+    filters.append(allFilesFilter);
+
+    const imageFilter = Gtk.FileFilter.new();
+    imageFilter.set_name("Images");
+    imageFilter.add_mime_type("image/*");
+    filters.append(imageFilter);
+
+    const textFilter = Gtk.FileFilter.new();
+    textFilter.set_name("Text Files");
+    textFilter.add_mime_type("text/*");
+    filters.append(textFilter);
+
+    dialog.set_filters(filters);
+    dialog.set_default_filter(allFilesFilter);
+
+    dialog.open(
+      this,
+      null,
+      python.callback(
+        // deno-lint-ignore no-explicit-any
+        (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
+          try {
+            const file = dialog.open_finish(result);
+            const filePath = file.get_path().valueOf();
+            const fileName = filePath.split("/").pop();
+
+            if (fileName) {
+              this.#label.set_text(`file: ${fileName}`);
+              worker.postMessage({ type: "file", path: filePath });
+            }
+          } catch (error) {
+            console.log("File dialog cancelled or error:", error);
+          }
+        },
+      ),
+    );
   };
 
   #showAbout = python.callback(() => {
@@ -273,6 +428,26 @@ headerbar {
           .valueOf()
       ) {
         this.#handlePaste();
+        return true;
+      }
+      if (
+        keyval === Gdk.KEY_o.valueOf() &&
+        //@ts-ignore: exists in pyobject
+        state.__and__(Gdk.ModifierType.CONTROL_MASK)
+          .__eq__(Gdk.ModifierType.CONTROL_MASK)
+          .valueOf()
+      ) {
+        this.#openFileDialog();
+        return true;
+      }
+      if (
+        keyval === Gdk.KEY_t.valueOf() &&
+        //@ts-ignore: exists in pyobject
+        state.__and__(Gdk.ModifierType.CONTROL_MASK)
+          .__eq__(Gdk.ModifierType.CONTROL_MASK)
+          .valueOf()
+      ) {
+        this.#toggleSharing();
         return true;
       }
       return false;
@@ -366,6 +541,7 @@ headerbar {
   };
 
   #onCloseRequest = () => {
+    worker.postMessage({ type: "stop-sharing" });
     worker.terminate();
     Deno.removeSync(qrPath);
     return false;
