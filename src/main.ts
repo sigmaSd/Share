@@ -9,7 +9,7 @@ import {
   kw,
   NamedArgument,
   python,
-} from "jsr:@sigma/gtk-py@0.4.29";
+} from "jsr:@sigma/gtk-py@0.6.4";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");
@@ -84,19 +84,6 @@ headerbar {
   background: @headerbar_bg_color;
   border-bottom: 1px solid @borders;
   box-shadow: inset 0 1px @headerbar_backdrop_color;
-}
-/* Fallback for better contrast in light mode */
-@media (prefers-color-scheme: light) {
-  headerbar {
-    background: linear-gradient(to bottom, #fafafa, #ededed);
-    border-bottom: 1px solid #d0d0d0;
-  }
-}
-@media (prefers-color-scheme: dark) {
-  headerbar {
-    background: @headerbar_bg_color;
-    border-bottom: 1px solid @headerbar_border_color;
-  }
 }`);
     Gtk.StyleContext.add_provider_for_display(
       Gdk.Display.get_default(),

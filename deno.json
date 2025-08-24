@@ -1,4 +1,6 @@
 {
   "version": "1.0.0",
-  "exclude": ["flatpak"]
+  "exclude": [
+    "flatpak"
+  ]
 }
