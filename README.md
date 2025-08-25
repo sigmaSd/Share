@@ -28,4 +28,5 @@ and web browser.
 deno run --reload --allow-all https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts
 ```
 
-![image](https://github.com/sigmaSd/qr-share/assets/22427111/e8348bcf-1ef9-431f-8cff-145278acb68c)
+<img width="522" height="620" alt="image" src="https://github.com/user-attachments/assets/38a9717a-7afa-4a23-bb47-b9461a798aef" />
+
