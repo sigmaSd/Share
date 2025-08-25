@@ -9,7 +9,7 @@ import {
   kw,
   NamedArgument,
   python,
-} from "jsr:@sigma/gtk-py@0.6.5";
+} from "jsr:@sigma/gtk-py@0.6.6";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");
@@ -321,23 +321,23 @@ headerbar {
   };
 
   #openFileDialog = () => {
-    const dialog = Gtk.FileDialog.new();
+    const dialog = Gtk.FileDialog();
     dialog.set_title("Select a file to share");
 
     // Add file filters for common file types
     const filters = Gio.ListStore.new(Gtk.FileFilter);
 
-    const allFilesFilter = Gtk.FileFilter.new();
+    const allFilesFilter = Gtk.FileFilter();
     allFilesFilter.set_name("All Files");
     allFilesFilter.add_pattern("*");
     filters.append(allFilesFilter);
 
-    const imageFilter = Gtk.FileFilter.new();
+    const imageFilter = Gtk.FileFilter();
     imageFilter.set_name("Images");
     imageFilter.add_mime_type("image/*");
     filters.append(imageFilter);
 
-    const textFilter = Gtk.FileFilter.new();
+    const textFilter = Gtk.FileFilter();
     textFilter.set_name("Text Files");
     textFilter.add_mime_type("text/*");
     filters.append(textFilter);
@@ -369,7 +369,7 @@ headerbar {
   };
 
   #openDirectoryDialog = () => {
-    const dialog = Gtk.FileDialog.new();
+    const dialog = Gtk.FileDialog();
     dialog.set_title("Select a directory to share");
 
     dialog.select_folder(

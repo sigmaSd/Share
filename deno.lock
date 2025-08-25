@@ -10,6 +10,7 @@
     "jsr:@sigma/gtk-py@0.6.3": "0.6.3",
     "jsr:@sigma/gtk-py@0.6.4": "0.6.4",
     "jsr:@sigma/gtk-py@0.6.5": "0.6.5",
+    "jsr:@sigma/gtk-py@0.6.6": "0.6.6",
     "jsr:@sigmasd/qrpng@0.1.3": "0.1.3",
     "jsr:@std/bytes@^1.0.5": "1.0.6",
     "jsr:@std/cli@^1.0.17": "1.0.17",
@@ -74,6 +75,12 @@
     },
     "@sigma/gtk-py@0.6.5": {
       "integrity": "f19b0c937b1b962f4b69c676a8ad768651faa5d7016c6b476029ca48a7541f34",
+      "dependencies": [
+        "jsr:@denosaurs/python@0.4.5"
+      ]
+    },
+    "@sigma/gtk-py@0.6.6": {
+      "integrity": "f9f122a38dc40a6500923a77ea91f5072f770b5769d130b9f476e3428fd71c58",
       "dependencies": [
         "jsr:@denosaurs/python@0.4.5"
       ]
