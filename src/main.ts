@@ -129,7 +129,7 @@ headerbar {
     this.get_style_context().add_class("main-window");
 
     this.#label = Gtk.Label(
-      kw`label=${"Drop a file here, press Ctrl+V to paste, or Ctrl+O to browse files"}`,
+      kw`label=${"Drop file or Ctrl+V to paste"}`,
     );
     this.#label.get_style_context().add_class("instruction-label");
 
@@ -257,6 +257,7 @@ headerbar {
     header.pack_start(hamburger);
 
     menu.append("Open File (Ctrl+O)", "app.open-file");
+    menu.append("Open Directory (Ctrl+Shift+O)", "app.open-directory");
     menu.append("Toggle Sharing (Ctrl+T)", "app.toggle-sharing");
     menu.append("About Share", "app.about");
 
@@ -288,6 +289,13 @@ headerbar {
       ["<primary>o"],
     );
     this.#createAction(
+      "open-directory",
+      python.callback(() => {
+        this.#openDirectoryDialog();
+      }),
+      ["<primary><shift>o"],
+    );
+    this.#createAction(
       "toggle-sharing",
       python.callback(() => {
         this.#toggleSharing();
@@ -298,6 +306,10 @@ headerbar {
     // Create actions after methods are defined
     this.#createAction("about", this.#showAbout);
     this.#createAction("open-file", python.callback(this.#openFileDialog));
+    this.#createAction(
+      "open-directory",
+      python.callback(this.#openDirectoryDialog),
+    );
     this.#createAction("toggle-sharing", python.callback(this.#toggleSharing));
   };
 
@@ -350,6 +362,33 @@ headerbar {
             }
           } catch (error) {
             console.log("File dialog cancelled or error:", error);
+          }
+        },
+      ),
+    );
+  };
+
+  #openDirectoryDialog = () => {
+    const dialog = Gtk.FileDialog.new();
+    dialog.set_title("Select a directory to share");
+
+    dialog.select_folder(
+      this,
+      null,
+      python.callback(
+        // deno-lint-ignore no-explicit-any
+        (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
+          try {
+            const file = dialog.select_folder_finish(result);
+            const dirPath = file.get_path().valueOf();
+            const dirName = dirPath.split("/").pop();
+
+            if (dirName) {
+              this.#label.set_text(`directory: ${dirName}`);
+              worker.postMessage({ type: "file", path: dirPath });
+            }
+          } catch (error) {
+            console.log("Directory dialog cancelled or error:", error);
           }
         },
       ),
@@ -437,7 +476,17 @@ headerbar {
           .__eq__(Gdk.ModifierType.CONTROL_MASK)
           .valueOf()
       ) {
-        this.#openFileDialog();
+        // Check if Shift is also pressed
+        if (
+          //@ts-ignore: exists in pyobject
+          state.__and__(Gdk.ModifierType.SHIFT_MASK)
+            .__eq__(Gdk.ModifierType.SHIFT_MASK)
+            .valueOf()
+        ) {
+          this.#openDirectoryDialog();
+        } else {
+          this.#openFileDialog();
+        }
         return true;
       }
       if (
