@@ -29,4 +29,3 @@ deno run --reload --allow-all https://raw.githubusercontent.com/sigmaSd/qr-share
 ```
 
 <img width="522" height="620" alt="image" src="https://github.com/user-attachments/assets/38a9717a-7afa-4a23-bb47-b9461a798aef" />
-
