@@ -1,67 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Access Error</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        .error-container {
-            max-width: 600px;
-            padding: 2rem;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .error-title {
-            color: #dc3545;
-            margin-bottom: 1rem;
-        }
-        .solution {
-            margin-top: 1rem;
-            padding: 1rem;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-        }
-        .steps {
-            margin-top: 1rem;
-            padding-left: 1.5rem;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+      }
+      .error-container {
+        max-width: 600px;
+        padding: 2rem;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .error-title {
+        color: #dc3545;
+        margin-bottom: 1rem;
+      }
+      .solution {
+        margin-top: 1rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+      .steps {
+        margin-top: 1rem;
+        padding-left: 1.5rem;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="error-container">
-        <h1 class="error-title">File Access Error</h1>
-        <p>The application couldn't access the file. This could be due to several reasons:</p>
+      <h1 class="error-title">File Access Error</h1>
+      <p>
+        The application couldn't access the file. This could be due to several
+        reasons:
+      </p>
+      <ul>
+        <li>The file might have been moved or deleted</li>
+        <li>You might not have the necessary permissions to read the file</li>
+        <li>
+          If you're using Flatpak, it might be due to sandbox restrictions
+        </li>
+      </ul>
+
+      <div class="solution">
+        <h2>Possible solutions:</h2>
         <ul>
-            <li>The file might have been moved or deleted</li>
-            <li>You might not have the necessary permissions to read the file</li>
-            <li>If you're using Flatpak, it might be due to sandbox restrictions</li>
+          <li>Verify that the file still exists and try sharing it again</li>
+          <li>
+            If you're using Flatpak, you can try granting file access
+            permissions using Flatseal:
+            <ol class="steps">
+              <li>Install Flatseal</li>
+              <li>Open Flatseal and find "Share" in the application list</li>
+              <li>Under "Filesystem", enable access to your home directory</li>
+            </ol>
+          </li>
         </ul>
+      </div>
 
-        <div class="solution">
-            <h2>Possible solutions:</h2>
-            <ul>
-                <li>Verify that the file still exists and try sharing it again</li>
-                <li>If you're using Flatpak, you can try granting file access permissions using Flatseal:
-                    <ol class="steps">
-                        <li>Install Flatseal</li>
-                        <li>Open Flatseal and find "Share" in the application list</li>
-                        <li>Under "Filesystem", enable access to your home directory</li>
-                    </ol>
-                </li>
-            </ul>
-        </div>
-
-        <p>Error details: {{ERROR_MESSAGE}}</p>
+      <p>Error details: {{ERROR_MESSAGE}}</p>
     </div>
-</body>
+  </body>
 </html>

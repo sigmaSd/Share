@@ -1,485 +1,516 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Upload</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            padding: 2rem;
-            max-width: 600px;
-            width: 100%;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .header h1 {
-            color: #333;
-            margin-bottom: 0.5rem;
-            font-size: 2rem;
-        }
-        .header p {
-            color: #666;
-            font-size: 1.1rem;
-        }
-        .upload-area {
-            border: 3px dashed #ddd;
-            border-radius: 15px;
-            padding: 3rem 2rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            margin-bottom: 1.5rem;
-        }
-        .upload-area:hover {
-            border-color: #667eea;
-            background-color: #f8f9ff;
-        }
-        .upload-area.dragover {
-            border-color: #667eea;
-            background-color: #f0f4ff;
-            transform: scale(1.02);
-        }
-        .upload-icon {
-            font-size: 3rem;
-            color: #ddd;
-            margin-bottom: 1rem;
-        }
-        .upload-area.dragover .upload-icon {
-            color: #667eea;
-        }
-        .upload-text {
-            color: #666;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-        }
-        .upload-area.dragover .upload-text {
-            color: #667eea;
-            font-weight: 600;
-        }
-        .file-input {
-            display: none;
-        }
-        .select-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 25px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-            margin: 5px;
-            display: inline-block;
-        }
-        .select-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        .button-group {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .progress-container {
-            margin-top: 1.5rem;
-            display: none;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background-color: #f0f0f0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        .progress-text {
-            text-align: center;
-            margin-top: 0.5rem;
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .file-list {
-            margin-top: 1.5rem;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.8rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-        }
-        .file-info {
-            flex: 1;
-            overflow: hidden;
-        }
-        .file-name {
-            color: #333;
-            font-weight: 500;
-            word-break: break-all;
-            font-size: 0.9rem;
-        }
-        .file-path {
-            color: #888;
-            font-size: 0.8rem;
-            margin-top: 2px;
-        }
-        .file-size {
-            color: #666;
-            font-size: 0.9rem;
-            margin-left: 10px;
-            white-space: nowrap;
-        }
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            display: none;
-        }
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            display: none;
-        }
-        .upload-button {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            font-size: 1rem;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 1rem;
-            display: none;
-            transition: background-color 0.2s ease;
-        }
-        .upload-button:hover {
-            background: #218838;
-        }
-        .upload-button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        max-width: 600px;
+        width: 100%;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+      .header h1 {
+        color: #333;
+        margin-bottom: 0.5rem;
+        font-size: 2rem;
+      }
+      .header p {
+        color: #666;
+        font-size: 1.1rem;
+      }
+      .upload-area {
+        border: 3px dashed #ddd;
+        border-radius: 15px;
+        padding: 3rem 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        margin-bottom: 1.5rem;
+      }
+      .upload-area:hover {
+        border-color: #667eea;
+        background-color: #f8f9ff;
+      }
+      .upload-area.dragover {
+        border-color: #667eea;
+        background-color: #f0f4ff;
+        transform: scale(1.02);
+      }
+      .upload-icon {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 1rem;
+      }
+      .upload-area.dragover .upload-icon {
+        color: #667eea;
+      }
+      .upload-text {
+        color: #666;
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+      }
+      .upload-area.dragover .upload-text {
+        color: #667eea;
+        font-weight: 600;
+      }
+      .file-input {
+        display: none;
+      }
+      .select-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        margin: 5px;
+        display: inline-block;
+      }
+      .select-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+      .button-group {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .progress-container {
+        margin-top: 1.5rem;
+        display: none;
+      }
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      .progress-text {
+        text-align: center;
+        margin-top: 0.5rem;
+        color: #666;
+        font-size: 0.9rem;
+      }
+      .file-list {
+        margin-top: 1.5rem;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .file-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.8rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+      }
+      .file-info {
+        flex: 1;
+        overflow: hidden;
+      }
+      .file-name {
+        color: #333;
+        font-weight: 500;
+        word-break: break-all;
+        font-size: 0.9rem;
+      }
+      .file-path {
+        color: #888;
+        font-size: 0.8rem;
+        margin-top: 2px;
+      }
+      .file-size {
+        color: #666;
+        font-size: 0.9rem;
+        margin-left: 10px;
+        white-space: nowrap;
+      }
+      .success-message {
+        background: #d4edda;
+        color: #155724;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+      }
+      .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+      }
+      .upload-button {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 1rem;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 1rem;
+        display: none;
+        transition: background-color 0.2s ease;
+      }
+      .upload-button:hover {
+        background: #218838;
+      }
+      .upload-button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>📁 File & Folder Upload</h1>
-            <p>Drag and drop files or folders here or click to select</p>
+      <div class="header">
+        <h1>📁 File & Folder Upload</h1>
+        <p>Drag and drop files or folders here or click to select</p>
+      </div>
+
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">
+          Drop files/folders here or click to browse
         </div>
-
-        <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">📤</div>
-            <div class="upload-text">Drop files/folders here or click to browse</div>
-            <div class="button-group">
-                <button class="select-button" onclick="document.getElementById('fileInput').click()">
-                    📄 Select Files
-                </button>
-                <button class="select-button" onclick="document.getElementById('directoryInput').click()">
-                    📁 Select Folder
-                </button>
-            </div>
+        <div class="button-group">
+          <button
+            class="select-button"
+            onclick="document.getElementById('fileInput').click()"
+          >
+            📄 Select Files
+          </button>
+          <button
+            class="select-button"
+            onclick="document.getElementById('directoryInput').click()"
+          >
+            📁 Select Folder
+          </button>
         </div>
+      </div>
 
-        <input type="file" id="fileInput" class="file-input" multiple>
-        <input type="file" id="directoryInput" class="file-input" webkitdirectory multiple>
+      <input type="file" id="fileInput" class="file-input" multiple>
+      <input
+        type="file"
+        id="directoryInput"
+        class="file-input"
+        webkitdirectory
+        multiple
+      >
 
-        <div class="file-list" id="fileList"></div>
+      <div class="file-list" id="fileList"></div>
 
-        <button class="upload-button" id="uploadButton">Upload Files</button>
+      <button class="upload-button" id="uploadButton">Upload Files</button>
 
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="progress-text" id="progressText">Uploading...</div>
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
         </div>
+        <div class="progress-text" id="progressText">Uploading...</div>
+      </div>
 
-        <div class="success-message" id="successMessage">
-            Files uploaded successfully!
-        </div>
+      <div class="success-message" id="successMessage">
+        Files uploaded successfully!
+      </div>
 
-        <div class="error-message" id="errorMessage">
-            Upload failed. Please try again.
-        </div>
+      <div class="error-message" id="errorMessage">
+        Upload failed. Please try again.
+      </div>
     </div>
 
     <script>
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const directoryInput = document.getElementById('directoryInput');
-        const fileList = document.getElementById('fileList');
-        const uploadButton = document.getElementById('uploadButton');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-        const successMessage = document.getElementById('successMessage');
-        const errorMessage = document.getElementById('errorMessage');
+      const uploadArea = document.getElementById("uploadArea");
+      const fileInput = document.getElementById("fileInput");
+      const directoryInput = document.getElementById("directoryInput");
+      const fileList = document.getElementById("fileList");
+      const uploadButton = document.getElementById("uploadButton");
+      const progressContainer = document.getElementById(
+        "progressContainer",
+      );
+      const progressFill = document.getElementById("progressFill");
+      const progressText = document.getElementById("progressText");
+      const successMessage = document.getElementById("successMessage");
+      const errorMessage = document.getElementById("errorMessage");
 
-        let selectedFiles = [];
+      let selectedFiles = [];
 
-        // Drag and drop handlers
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
+      // Drag and drop handlers
+      uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadArea.classList.add("dragover");
+      });
 
-        uploadArea.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            if (!uploadArea.contains(e.relatedTarget)) {
-                uploadArea.classList.remove('dragover');
-            }
-        });
+      uploadArea.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        if (!uploadArea.contains(e.relatedTarget)) {
+          uploadArea.classList.remove("dragover");
+        }
+      });
 
-        uploadArea.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
+      uploadArea.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove("dragover");
 
-            const items = Array.from(e.dataTransfer.items);
-            const files = [];
+        const items = Array.from(e.dataTransfer.items);
+        const files = [];
 
-            // Handle directory uploads through drag and drop
-            for (const item of items) {
-                if (item.kind === 'file') {
-                    const entry = item.webkitGetAsEntry();
-                    if (entry) {
-                        if (entry.isDirectory) {
-                            const dirFiles = await getAllFilesFromDirectory(entry);
-                            files.push(...dirFiles);
-                        } else {
-                            files.push(item.getAsFile());
-                        }
-                    } else {
-                        files.push(item.getAsFile());
-                    }
-                }
-            }
-
-            if (files.length === 0) {
-                // Fallback to regular file handling
-                const fallbackFiles = Array.from(e.dataTransfer.files);
-                handleFiles(fallbackFiles);
+        // Handle directory uploads through drag and drop
+        for (const item of items) {
+          if (item.kind === "file") {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              if (entry.isDirectory) {
+                const dirFiles = await getAllFilesFromDirectory(entry);
+                files.push(...dirFiles);
+              } else {
+                files.push(item.getAsFile());
+              }
             } else {
-                handleFiles(files);
+              files.push(item.getAsFile());
             }
-        });
-
-        // Helper function to recursively read directory contents
-        async function getAllFilesFromDirectory(directoryEntry) {
-            const files = [];
-            const reader = directoryEntry.createReader();
-
-            return new Promise((resolve) => {
-                const readEntries = () => {
-                    reader.readEntries(async (entries) => {
-                        if (entries.length === 0) {
-                            resolve(files);
-                            return;
-                        }
-
-                        for (const entry of entries) {
-                            if (entry.isFile) {
-                                const file = await new Promise((resolve) => {
-                                    entry.file(resolve);
-                                });
-                                // Set the relative path for proper directory structure
-                                Object.defineProperty(file, 'webkitRelativePath', {
-                                    value: entry.fullPath.substring(1), // Remove leading slash
-                                    writable: false
-                                });
-                                files.push(file);
-                            } else if (entry.isDirectory) {
-                                const subFiles = await getAllFilesFromDirectory(entry);
-                                files.push(...subFiles);
-                            }
-                        }
-
-                        readEntries(); // Continue reading
-                    });
-                };
-
-                readEntries();
-            });
+          }
         }
 
-        // Click to upload
-        uploadArea.addEventListener('click', () => {
-            fileInput.click();
+        if (files.length === 0) {
+          // Fallback to regular file handling
+          const fallbackFiles = Array.from(e.dataTransfer.files);
+          handleFiles(fallbackFiles);
+        } else {
+          handleFiles(files);
+        }
+      });
+
+      // Helper function to recursively read directory contents
+      async function getAllFilesFromDirectory(directoryEntry) {
+        const files = [];
+        const reader = directoryEntry.createReader();
+
+        return new Promise((resolve) => {
+          const readEntries = () => {
+            reader.readEntries(async (entries) => {
+              if (entries.length === 0) {
+                resolve(files);
+                return;
+              }
+
+              for (const entry of entries) {
+                if (entry.isFile) {
+                  const file = await new Promise((resolve) => {
+                    entry.file(resolve);
+                  });
+                  // Set the relative path for proper directory structure
+                  Object.defineProperty(file, "webkitRelativePath", {
+                    value: entry.fullPath.substring(1), // Remove leading slash
+                    writable: false,
+                  });
+                  files.push(file);
+                } else if (entry.isDirectory) {
+                  const subFiles = await getAllFilesFromDirectory(
+                    entry,
+                  );
+                  files.push(...subFiles);
+                }
+              }
+
+              readEntries(); // Continue reading
+            });
+          };
+
+          readEntries();
+        });
+      }
+
+      // Click to upload
+      uploadArea.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        handleFiles(files);
+      });
+
+      directoryInput.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        handleFiles(files);
+      });
+
+      function handleFiles(files) {
+        selectedFiles = files;
+        displayFiles();
+        if (files.length > 0) {
+          uploadButton.style.display = "block";
+        }
+      }
+
+      function displayFiles() {
+        fileList.innerHTML = "";
+
+        // Group files by directory for better display
+        const filesByDir = {};
+        selectedFiles.forEach((file) => {
+          const relativePath = file.webkitRelativePath || file.name;
+          const filePath = relativePath.includes("/")
+            ? relativePath.substring(0, relativePath.lastIndexOf("/"))
+            : "";
+
+          if (!filesByDir[filePath]) {
+            filesByDir[filePath] = [];
+          }
+          filesByDir[filePath].push(file);
         });
 
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            handleFiles(files);
+        // Display files grouped by directory
+        Object.keys(filesByDir).sort().forEach((dirPath) => {
+          if (dirPath && Object.keys(filesByDir).length > 1) {
+            // Add directory header if there are multiple directories
+            const dirHeader = document.createElement("div");
+            dirHeader.style.cssText =
+              "font-weight: bold; color: #667eea; margin: 10px 0 5px 0; font-size: 0.9rem;";
+            dirHeader.textContent = "📁 " + dirPath + "/";
+            fileList.appendChild(dirHeader);
+          }
+
+          filesByDir[dirPath].forEach((file) => {
+            const fileItem = document.createElement("div");
+            fileItem.className = "file-item";
+
+            const relativePath = file.webkitRelativePath || file.name;
+            const fileName = relativePath.split("/").pop();
+
+            fileItem.innerHTML = '<div class="file-info">' +
+              '<div class="file-name">' + fileName + "</div>" +
+              "</div>" +
+              '<span class="file-size">' + formatFileSize(file.size) +
+              "</span>";
+            fileList.appendChild(fileItem);
+          });
+        });
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " +
+          sizes[i];
+      }
+
+      uploadButton.addEventListener("click", async () => {
+        if (selectedFiles.length === 0) return;
+
+        uploadButton.disabled = true;
+        progressContainer.style.display = "block";
+        successMessage.style.display = "none";
+        errorMessage.style.display = "none";
+
+        const formData = new FormData();
+        selectedFiles.forEach((file) => {
+          formData.append("files", file);
         });
 
-        directoryInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            handleFiles(files);
-        });
+        try {
+          const response = await fetch("/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        function handleFiles(files) {
-            selectedFiles = files;
-            displayFiles();
-            if (files.length > 0) {
-                uploadButton.style.display = 'block';
+          if (response.ok) {
+            progressFill.style.width = "100%";
+            progressText.textContent = "Upload complete!";
+
+            // Calculate upload summary
+            const fileCount = selectedFiles.length;
+            const totalSize = selectedFiles.reduce(
+              (sum, file) => sum + file.size,
+              0,
+            );
+            const hasDirectories = selectedFiles.some((file) =>
+              file.webkitRelativePath &&
+              file.webkitRelativePath.includes("/")
+            );
+
+            let summaryText = "Successfully uploaded " + fileCount +
+              " file" + (fileCount !== 1 ? "s" : "");
+            if (hasDirectories) {
+              summaryText += " (including folders)";
             }
+            summaryText += " (" + formatFileSize(totalSize) + ")";
+
+            setTimeout(() => {
+              progressContainer.style.display = "none";
+              successMessage.innerHTML = summaryText;
+              successMessage.style.display = "block";
+              selectedFiles = [];
+              fileList.innerHTML = "";
+              uploadButton.style.display = "none";
+              fileInput.value = "";
+              directoryInput.value = "";
+            }, 1000);
+          } else {
+            throw new Error("Upload failed");
+          }
+        } catch (error) {
+          progressContainer.style.display = "none";
+          errorMessage.style.display = "block";
+          console.error("Upload error:", error);
+        } finally {
+          uploadButton.disabled = false;
+          progressFill.style.width = "0%";
         }
+      });
 
-        function displayFiles() {
-            fileList.innerHTML = '';
-
-            // Group files by directory for better display
-            const filesByDir = {};
-            selectedFiles.forEach(file => {
-                const relativePath = file.webkitRelativePath || file.name;
-                const filePath = relativePath.includes('/') ? relativePath.substring(0, relativePath.lastIndexOf('/')) : '';
-
-                if (!filesByDir[filePath]) {
-                    filesByDir[filePath] = [];
-                }
-                filesByDir[filePath].push(file);
-            });
-
-            // Display files grouped by directory
-            Object.keys(filesByDir).sort().forEach(dirPath => {
-                if (dirPath && Object.keys(filesByDir).length > 1) {
-                    // Add directory header if there are multiple directories
-                    const dirHeader = document.createElement('div');
-                    dirHeader.style.cssText = 'font-weight: bold; color: #667eea; margin: 10px 0 5px 0; font-size: 0.9rem;';
-                    dirHeader.textContent = "📁 " + dirPath + "/";
-                    fileList.appendChild(dirHeader);
-                }
-
-                filesByDir[dirPath].forEach(file => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'file-item';
-
-                    const relativePath = file.webkitRelativePath || file.name;
-                    const fileName = relativePath.split('/').pop();
-
-                    fileItem.innerHTML =
-                        '<div class="file-info">' +
-                            '<div class="file-name">' + fileName + '</div>' +
-                        '</div>' +
-                        '<span class="file-size">' + formatFileSize(file.size) + '</span>';
-                    fileList.appendChild(fileItem);
-                });
-            });
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        uploadButton.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) return;
-
-            uploadButton.disabled = true;
-            progressContainer.style.display = 'block';
-            successMessage.style.display = 'none';
-            errorMessage.style.display = 'none';
-
-            const formData = new FormData();
-            selectedFiles.forEach(file => {
-                formData.append('files', file);
-            });
-
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    progressFill.style.width = '100%';
-                    progressText.textContent = 'Upload complete!';
-
-                    // Calculate upload summary
-                    const fileCount = selectedFiles.length;
-                    const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
-                    const hasDirectories = selectedFiles.some(file => file.webkitRelativePath && file.webkitRelativePath.includes('/'));
-
-                    let summaryText = 'Successfully uploaded ' + fileCount + ' file' + (fileCount !== 1 ? 's' : '');
-                    if (hasDirectories) {
-                        summaryText += ' (including folders)';
-                    }
-                    summaryText += ' (' + formatFileSize(totalSize) + ')';
-
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        successMessage.innerHTML = summaryText;
-                        successMessage.style.display = 'block';
-                        selectedFiles = [];
-                        fileList.innerHTML = '';
-                        uploadButton.style.display = 'none';
-                        fileInput.value = '';
-                        directoryInput.value = '';
-                    }, 1000);
-                } else {
-                    throw new Error('Upload failed');
-                }
-            } catch (error) {
-                progressContainer.style.display = 'none';
-                errorMessage.style.display = 'block';
-                console.error('Upload error:', error);
-            } finally {
-                uploadButton.disabled = false;
-                progressFill.style.width = '0%';
-            }
-        });
-
-        // Simulate progress (you can implement real progress tracking if needed)
-        function simulateProgress() {
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 30;
-                if (progress >= 95) {
-                    progress = 95;
-                    clearInterval(interval);
-                }
-                progressFill.style.width = progress + '%';
-                progressText.textContent = 'Uploading... ' + Math.round(progress) + '%';
-            }, 200);
-        }
+      // Simulate progress (you can implement real progress tracking if needed)
+      function simulateProgress() {
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 30;
+          if (progress >= 95) {
+            progress = 95;
+            clearInterval(interval);
+          }
+          progressFill.style.width = progress + "%";
+          progressText.textContent = "Uploading... " +
+            Math.round(progress) + "%";
+        }, 200);
+      }
     </script>
-</body>
+  </body>
 </html>
