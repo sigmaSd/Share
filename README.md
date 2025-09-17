@@ -38,7 +38,7 @@ files:
 ## Usage
 
 ```bash
-deno run --reload --allow-all https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts
+deno run --reload --allow-all --unstable-raw-imports https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts
 ```
 
 ## Keyboard Shortcuts
