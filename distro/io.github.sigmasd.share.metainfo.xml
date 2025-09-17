@@ -9,22 +9,25 @@
   <project_license>MIT</project_license>
 
   <description>
-    <p>Share is a simple file sharing application</p>
+    <p>Share is a bidirectional file sharing application that works both ways - send files to others or receive files from them.</p>
     <p>Features:</p>
     <ul>
-      <li>Instant file sharing with simple drag-and-drop functionality</li>
-      <li>Receiver needs only a QR code scanner - no additional software required</li>
-      <li>Ability to drop directories to view and selectively download contained files</li>
+      <li>Bidirectional file transfer - both send and receive files</li>
+      <li>No additional software required - just a QR code scanner and web browser</li>
+      <li>Receive Mode - let others upload files directly to your device</li>
+      <li>Directory uploads - upload/download entire folder structures</li>
+      <li>Multiple file uploads - batch upload many files at once</li>
       <li>Share data from the clipboard, automatically detect if the clipboard contains an image, or a text, note that pasting files will only send paths as text (if the app doesn't have read permission), so its better to drop them instead</li>
     </ul>
     <p>How it works:</p>
     <ul>
-      <li>The app creates a temporary HTTP server on your local network</li>
-      <li>Generates a QR code containing the server URL</li>
-      <li>Recipients can access shared content directly through their web browser</li>
-      <li>All sharing happens locally over your network - no internet required</li>
+      <li>Creates a temporary HTTP server on your local network</li>
+      <li>Generates QR codes for both sharing and receiving</li>
+      <li>Sharing Mode: Others scan to download your files</li>
+      <li>Receive Mode: Others scan to upload files to you via web interface</li>
+      <li>All transfers happen locally over your network - no internet required</li>
     </ul>
-    <p>Share makes file transfer hassle-free, whether you're sharing documents, images, or any other file type. Simply drop a file into the application. Scan the QR code with another device to initiate the transfer.</p>
+    <p>Perfect for quick file transfers between devices, mobile-to-desktop uploads, collaborative work, or any situation where you need wireless file transfer without cloud services.</p>
   </description>
 
   <launchable type="desktop-id">io.github.sigmasd.share.desktop</launchable>
@@ -42,6 +45,13 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.2.0" date="2025-09-17">
+        <description>
+        <ul>
+            <li>NEW: Receive Mode - Enable others to upload files/directories to your device</li>
+        </ul>
+        </description>
+    </release>
     <release version="1.1.0" date="2025-08-25">
         <description>
         <ul>
