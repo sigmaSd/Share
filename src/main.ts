@@ -1,4 +1,5 @@
 #!/usr/bin/env -S deno run --allow-all --unstable-ffi
+import { homedir } from "node:os";
 import {
   type Adw1_ as Adw_,
   Callback,
@@ -244,9 +245,7 @@ headerbar {
     this.#statusIndicator.set_halign(Gtk.Align.CENTER);
 
     // Initialize download directory
-    this.#downloadDir = Deno.env.get("HOME")
-      ? `${Deno.env.get("HOME")}/Downloads`
-      : "/tmp";
+    this.#downloadDir = `${homedir()}/Downloads`;
 
     // Update initial UI state
     this.#updateSharingUI();
@@ -342,7 +341,6 @@ headerbar {
     menu.append("Open Directory (Ctrl+Shift+O)", "app.open-directory");
     menu.append("Toggle Sharing (Ctrl+T)", "app.toggle-sharing");
     menu.append("Toggle Receive Mode (Ctrl+R)", "app.toggle-receive");
-    menu.append("Set Download Directory", "app.set-download-dir");
     menu.append("About Share", "app.about");
 
     return header;
@@ -393,12 +391,6 @@ headerbar {
       }),
       ["<primary>r"],
     );
-    this.#createAction(
-      "set-download-dir",
-      python.callback(() => {
-        this.#selectDownloadDirectory();
-      }),
-    );
 
     // Create actions after methods are defined
     this.#createAction("about", this.#showAbout);
@@ -411,10 +403,6 @@ headerbar {
     this.#createAction(
       "toggle-receive",
       python.callback(this.#toggleReceiveMode),
-    );
-    this.#createAction(
-      "set-download-dir",
-      python.callback(this.#selectDownloadDirectory),
     );
   };
 
@@ -702,37 +690,6 @@ headerbar {
     } else {
       console.warn("No image found in clipboard");
     }
-  };
-
-  #selectDownloadDirectory = () => {
-    const dialog = Gtk.FileDialog();
-    dialog.set_title("Select Download Directory");
-
-    dialog.select_folder(
-      this,
-      null,
-      python.callback(
-        // deno-lint-ignore no-explicit-any
-        (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
-          try {
-            const file = dialog.select_folder_finish(result);
-            this.#downloadDir = file.get_path().valueOf();
-            worker.postMessage({
-              type: "set-download-dir",
-              path: this.#downloadDir,
-            });
-
-            if (this.#isReceiveMode) {
-              this.#label.set_text(
-                `Files will be saved to: ${this.#downloadDir.split("/").pop()}`,
-              );
-            }
-          } catch (error) {
-            console.log("Directory dialog cancelled or error:", error);
-          }
-        },
-      ),
-    );
   };
 
   #onCloseRequest = () => {
