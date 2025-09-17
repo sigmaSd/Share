@@ -45,6 +45,13 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.2.2" date="2025-09-17">
+        <description>
+        <ul>
+            <li>Fix receive mode in flatpak, add read/write permission to ~/Downloads</li>
+        </ul>
+        </description>
+    </release>
     <release version="1.2.1" date="2025-09-17">
         <description>
         <ul>
