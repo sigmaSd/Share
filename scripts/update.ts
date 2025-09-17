@@ -1,4 +1,5 @@
 #!/usr/bin/env -S deno run --no-lock --no-config -A
+// deno-lint-ignore-file no-import-prefix
 import { $ } from "jsr:@david/dax@0.43.1";
 
 // get the app version

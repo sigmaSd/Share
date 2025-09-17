@@ -9,7 +9,8 @@ import {
   kw,
   NamedArgument,
   python,
-} from "jsr:@sigma/gtk-py@0.6.6";
+  // deno-lint-ignore no-import-prefix
+} from "jsr:@sigma/gtk-py@0.6.7";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");

@@ -8,9 +8,11 @@ Drop a file to share or receive files from others
 
 ## How it works
 
-Share supports **bidirectional file transfer** - you can both send and receive files:
+Share supports **bidirectional file transfer** - you can both send and receive
+files:
 
 ### 📤 **Sharing Mode** (Send files to others)
+
 1. Drop a file or paste content into the app
 2. A QR code is generated containing your local server's URL
 3. Others scan the QR code to download your files through their web browser
@@ -19,6 +21,7 @@ Share supports **bidirectional file transfer** - you can both send and receive f
 6. For text content, they see the text directly in their browser
 
 ### 📥 **Receive Mode** (Receive files from others)
+
 1. Click "Receive Mode" or press `Ctrl+R`
 2. Share the QR code with others
 3. They scan it and get an upload interface in their web browser
@@ -26,6 +29,7 @@ Share supports **bidirectional file transfer** - you can both send and receive f
 5. Files are automatically saved to your Downloads folder (configurable)
 
 **Key Features:**
+
 - **No additional software needed** - just a QR code scanner and web browser
 - **Directory support** - Upload/download entire folder structures
 - **Multiple file uploads** - Batch upload many files at once (receive mode)
