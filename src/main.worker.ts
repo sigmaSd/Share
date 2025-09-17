@@ -198,15 +198,23 @@ const uploadPage = `\
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 12px 30px;
+            padding: 12px 20px;
             border-radius: 25px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             cursor: pointer;
             transition: transform 0.2s ease;
+            margin: 5px;
+            display: inline-block;
         }
         .select-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         .progress-container {
             margin-top: 1.5rem;
@@ -245,13 +253,26 @@ const uploadPage = `\
             border-radius: 8px;
             margin-bottom: 0.5rem;
         }
+        .file-info {
+            flex: 1;
+            overflow: hidden;
+        }
         .file-name {
             color: #333;
             font-weight: 500;
+            word-break: break-all;
+            font-size: 0.9rem;
+        }
+        .file-path {
+            color: #888;
+            font-size: 0.8rem;
+            margin-top: 2px;
         }
         .file-size {
             color: #666;
             font-size: 0.9rem;
+            margin-left: 10px;
+            white-space: nowrap;
         }
         .success-message {
             background: #d4edda;
@@ -294,19 +315,25 @@ const uploadPage = `\
 <body>
     <div class="container">
         <div class="header">
-            <h1>📁 File Upload</h1>
-            <p>Drag and drop files here or click to select</p>
+            <h1>📁 File & Folder Upload</h1>
+            <p>Drag and drop files or folders here or click to select</p>
         </div>
 
         <div class="upload-area" id="uploadArea">
             <div class="upload-icon">📤</div>
-            <div class="upload-text">Drop files here or click to browse</div>
-            <button class="select-button" onclick="document.getElementById('fileInput').click()">
-                Select Files
-            </button>
+            <div class="upload-text">Drop files/folders here or click to browse</div>
+            <div class="button-group">
+                <button class="select-button" onclick="document.getElementById('fileInput').click()">
+                    📄 Select Files
+                </button>
+                <button class="select-button" onclick="document.getElementById('directoryInput').click()">
+                    📁 Select Folder
+                </button>
+            </div>
         </div>
 
         <input type="file" id="fileInput" class="file-input" multiple>
+        <input type="file" id="directoryInput" class="file-input" webkitdirectory multiple>
 
         <div class="file-list" id="fileList"></div>
 
@@ -331,6 +358,7 @@ const uploadPage = `\
     <script>
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
+        const directoryInput = document.getElementById('directoryInput');
         const fileList = document.getElementById('fileList');
         const uploadButton = document.getElementById('uploadButton');
         const progressContainer = document.getElementById('progressContainer');
@@ -349,15 +377,81 @@ const uploadPage = `\
 
         uploadArea.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            uploadArea.classList.remove('dragover');
+            if (!uploadArea.contains(e.relatedTarget)) {
+                uploadArea.classList.remove('dragover');
+            }
         });
 
-        uploadArea.addEventListener('drop', (e) => {
+        uploadArea.addEventListener('drop', async (e) => {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
-            const files = Array.from(e.dataTransfer.files);
-            handleFiles(files);
+
+            const items = Array.from(e.dataTransfer.items);
+            const files = [];
+
+            // Handle directory uploads through drag and drop
+            for (const item of items) {
+                if (item.kind === 'file') {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) {
+                        if (entry.isDirectory) {
+                            const dirFiles = await getAllFilesFromDirectory(entry);
+                            files.push(...dirFiles);
+                        } else {
+                            files.push(item.getAsFile());
+                        }
+                    } else {
+                        files.push(item.getAsFile());
+                    }
+                }
+            }
+
+            if (files.length === 0) {
+                // Fallback to regular file handling
+                const fallbackFiles = Array.from(e.dataTransfer.files);
+                handleFiles(fallbackFiles);
+            } else {
+                handleFiles(files);
+            }
         });
+
+        // Helper function to recursively read directory contents
+        async function getAllFilesFromDirectory(directoryEntry) {
+            const files = [];
+            const reader = directoryEntry.createReader();
+
+            return new Promise((resolve) => {
+                const readEntries = () => {
+                    reader.readEntries(async (entries) => {
+                        if (entries.length === 0) {
+                            resolve(files);
+                            return;
+                        }
+
+                        for (const entry of entries) {
+                            if (entry.isFile) {
+                                const file = await new Promise((resolve) => {
+                                    entry.file(resolve);
+                                });
+                                // Set the relative path for proper directory structure
+                                Object.defineProperty(file, 'webkitRelativePath', {
+                                    value: entry.fullPath.substring(1), // Remove leading slash
+                                    writable: false
+                                });
+                                files.push(file);
+                            } else if (entry.isDirectory) {
+                                const subFiles = await getAllFilesFromDirectory(entry);
+                                files.push(...subFiles);
+                            }
+                        }
+
+                        readEntries(); // Continue reading
+                    });
+                };
+
+                readEntries();
+            });
+        }
 
         // Click to upload
         uploadArea.addEventListener('click', () => {
@@ -365,6 +459,11 @@ const uploadPage = `\
         });
 
         fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        directoryInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             handleFiles(files);
         });
@@ -379,14 +478,43 @@ const uploadPage = `\
 
         function displayFiles() {
             fileList.innerHTML = '';
+
+            // Group files by directory for better display
+            const filesByDir = {};
             selectedFiles.forEach(file => {
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-item';
-                fileItem.innerHTML = \`
-                    <span class="file-name">\${file.name}</span>
-                    <span class="file-size">\${formatFileSize(file.size)}</span>
-                \`;
-                fileList.appendChild(fileItem);
+                const relativePath = file.webkitRelativePath || file.name;
+                const filePath = relativePath.includes('/') ? relativePath.substring(0, relativePath.lastIndexOf('/')) : '';
+
+                if (!filesByDir[filePath]) {
+                    filesByDir[filePath] = [];
+                }
+                filesByDir[filePath].push(file);
+            });
+
+            // Display files grouped by directory
+            Object.keys(filesByDir).sort().forEach(dirPath => {
+                if (dirPath && Object.keys(filesByDir).length > 1) {
+                    // Add directory header if there are multiple directories
+                    const dirHeader = document.createElement('div');
+                    dirHeader.style.cssText = 'font-weight: bold; color: #667eea; margin: 10px 0 5px 0; font-size: 0.9rem;';
+                    dirHeader.textContent = "📁 " + dirPath + "/";
+                    fileList.appendChild(dirHeader);
+                }
+
+                filesByDir[dirPath].forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+
+                    const relativePath = file.webkitRelativePath || file.name;
+                    const fileName = relativePath.split('/').pop();
+
+                    fileItem.innerHTML =
+                        '<div class="file-info">' +
+                            '<div class="file-name">' + fileName + '</div>' +
+                        '</div>' +
+                        '<span class="file-size">' + formatFileSize(file.size) + '</span>';
+                    fileList.appendChild(fileItem);
+                });
             });
         }
 
@@ -420,13 +548,27 @@ const uploadPage = `\
                 if (response.ok) {
                     progressFill.style.width = '100%';
                     progressText.textContent = 'Upload complete!';
+
+                    // Calculate upload summary
+                    const fileCount = selectedFiles.length;
+                    const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+                    const hasDirectories = selectedFiles.some(file => file.webkitRelativePath && file.webkitRelativePath.includes('/'));
+
+                    let summaryText = 'Successfully uploaded ' + fileCount + ' file' + (fileCount !== 1 ? 's' : '');
+                    if (hasDirectories) {
+                        summaryText += ' (including folders)';
+                    }
+                    summaryText += ' (' + formatFileSize(totalSize) + ')';
+
                     setTimeout(() => {
                         progressContainer.style.display = 'none';
+                        successMessage.innerHTML = summaryText;
                         successMessage.style.display = 'block';
                         selectedFiles = [];
                         fileList.innerHTML = '';
                         uploadButton.style.display = 'none';
                         fileInput.value = '';
+                        directoryInput.value = '';
                     }, 1000);
                 } else {
                     throw new Error('Upload failed');
@@ -451,7 +593,7 @@ const uploadPage = `\
                     clearInterval(interval);
                 }
                 progressFill.style.width = progress + '%';
-                progressText.textContent = \`Uploading... \${Math.round(progress)}%\`;
+                progressText.textContent = 'Uploading... ' + Math.round(progress) + '%';
             }, 200);
         }
     </script>
@@ -546,7 +688,18 @@ if (import.meta.main) {
 
           for (const file of files) {
             if (file && file.size > 0) {
-              const filePath = join(downloadDir, file.name);
+              // Use webkitRelativePath if available (for directory uploads)
+              const fileName = file.name.includes("/")
+                ? file.name
+                : (file.webkitRelativePath || file.name);
+              const filePath = join(downloadDir, fileName);
+
+              // Ensure subdirectories exist for directory uploads
+              const fileDir = filePath.substring(0, filePath.lastIndexOf("/"));
+              if (fileDir !== downloadDir) {
+                await ensureDir(fileDir);
+              }
+
               const arrayBuffer = await file.arrayBuffer();
               await Deno.writeFile(filePath, new Uint8Array(arrayBuffer));
               console.log(`[worker] File saved: ${filePath}`);
