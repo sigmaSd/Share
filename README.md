@@ -50,4 +50,4 @@ deno run --reload --allow-all https://raw.githubusercontent.com/sigmaSd/qr-share
 - **`Ctrl+R`** - Toggle receive mode
 - **`Ctrl+Q/Ctrl+W`** - Quit application
 
-<img width="522" height="620" alt="image" src="https://github.com/user-attachments/assets/38a9717a-7afa-4a23-bb47-b9461a798aef" />
+<img width="522" height="692" alt="image" src="https://github.com/user-attachments/assets/93e66598-38df-4b0d-890c-1a519d42163d" />
