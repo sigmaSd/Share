@@ -18,6 +18,7 @@
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
     "jsr:@std/fs@1": "1.0.17",
+    "jsr:@std/fs@1.0.12": "1.0.12",
     "jsr:@std/html@^1.0.4": "1.0.4",
     "jsr:@std/http@1.0.16": "1.0.16",
     "jsr:@std/io@0.225": "0.225.2",
@@ -34,7 +35,7 @@
         "jsr:@david/path",
         "jsr:@david/which",
         "jsr:@std/fmt@1",
-        "jsr:@std/fs",
+        "jsr:@std/fs@1",
         "jsr:@std/io",
         "jsr:@std/path@1"
       ]
@@ -42,7 +43,7 @@
     "@david/path@0.2.0": {
       "integrity": "f2d7aa7f02ce5a55e27c09f9f1381794acb09d328f8d3c8a2e3ab3ffc294dccd",
       "dependencies": [
-        "jsr:@std/fs",
+        "jsr:@std/fs@1",
         "jsr:@std/path@1"
       ]
     },
@@ -99,6 +100,9 @@
     },
     "@std/fmt@1.0.8": {
       "integrity": "71e1fc498787e4434d213647a6e43e794af4fd393ef8f52062246e06f7e372b7"
+    },
+    "@std/fs@1.0.12": {
+      "integrity": "53df0f772763d4dd377e69cd8de6afff5411d3409b4d6267b6f5dcb5d7067bcc"
     },
     "@std/fs@1.0.17": {
       "integrity": "1c00c632677c1158988ef7a004cb16137f870aafdb8163b9dce86ec652f3952b",

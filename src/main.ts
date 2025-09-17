@@ -40,6 +40,9 @@ class MainWindow extends Adw.ApplicationWindow {
   #shareButton!: Gtk_.Button;
   #statusIndicator!: Gtk_.Label;
   #isSharing: boolean = true;
+  #receiveButton!: Gtk_.Button;
+  #isReceiveMode: boolean = false;
+  #downloadDir: string = "";
 
   constructor(kwArg: NamedArgument, url: string) {
     super(kwArg);
@@ -83,11 +86,12 @@ class MainWindow extends Adw.ApplicationWindow {
   border-radius: 5px;
 }
 .share-button {
-  margin: 10px;
+  margin: 5px;
   padding: 8px 16px;
   border-radius: 6px;
   font-weight: bold;
   transition: all 0.2s ease;
+  min-height: 40px;
 }
 .share-button.active {
   background-color: #28a745;
@@ -95,6 +99,22 @@ class MainWindow extends Adw.ApplicationWindow {
 }
 .share-button.inactive {
   background-color: #dc3545;
+  color: white;
+}
+.receive-button {
+  margin: 5px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  min-height: 40px;
+}
+.receive-button.active {
+  background-color: #007bff;
+  color: white;
+}
+.receive-button.inactive {
+  background-color: #6c757d;
   color: white;
 }
 .status-indicator {
@@ -147,6 +167,7 @@ headerbar {
     this.#contentBox.append(this.#picture);
     this.#contentBox.append(this.#urlBox);
     this.#contentBox.append(this.#shareButton);
+    this.#contentBox.append(this.#receiveButton);
     this.#contentBox.append(this.#statusIndicator);
 
     // Set up the ToolbarView with header and content
@@ -205,27 +226,62 @@ headerbar {
       }),
     );
 
+    this.#receiveButton = Gtk.Button(kw`label="Receive Mode"`);
+    this.#receiveButton.get_style_context().add_class("receive-button");
+    this.#receiveButton.get_style_context().add_class("active");
+    this.#receiveButton.set_tooltip_text("Toggle receive mode (Ctrl+R)");
+    this.#receiveButton.connect(
+      "clicked",
+      python.callback(() => {
+        this.#toggleReceiveMode();
+      }),
+    );
+
     this.#statusIndicator = Gtk.Label(kw`label="● Sharing Active"`);
     this.#statusIndicator.get_style_context().add_class("status-indicator");
     this.#statusIndicator.get_style_context().add_class("status-active");
     this.#statusIndicator.set_halign(Gtk.Align.CENTER);
+
+    // Initialize download directory
+    this.#downloadDir = Deno.env.get("HOME")
+      ? `${Deno.env.get("HOME")}/Downloads`
+      : "/tmp";
 
     // Update initial UI state
     this.#updateSharingUI();
   };
 
   #updateSharingUI = () => {
-    if (this.#isSharing) {
+    if (this.#isReceiveMode) {
+      this.#shareButton.set_visible(false);
+      this.#receiveButton.set_label("Exit Receive Mode");
+      this.#receiveButton.get_style_context().remove_class("active");
+      this.#receiveButton.get_style_context().add_class("inactive");
+      this.#statusIndicator.set_text("📥 Receiving Files");
+      this.#statusIndicator.get_style_context().remove_class("status-inactive");
+      this.#statusIndicator.get_style_context().add_class("status-active");
+      this.#label.set_text(
+        `Files will be saved to: ${this.#downloadDir.split("/").pop()}`,
+      );
+    } else if (this.#isSharing) {
+      this.#shareButton.set_visible(true);
       this.#shareButton.set_label("Stop Sharing");
       this.#shareButton.get_style_context().remove_class("active");
       this.#shareButton.get_style_context().add_class("inactive");
+      this.#receiveButton.set_label("Receive Mode");
+      this.#receiveButton.get_style_context().remove_class("inactive");
+      this.#receiveButton.get_style_context().add_class("active");
       this.#statusIndicator.set_text("● Sharing Active");
       this.#statusIndicator.get_style_context().remove_class("status-inactive");
       this.#statusIndicator.get_style_context().add_class("status-active");
     } else {
+      this.#shareButton.set_visible(true);
       this.#shareButton.set_label("Start Sharing");
       this.#shareButton.get_style_context().remove_class("inactive");
       this.#shareButton.get_style_context().add_class("active");
+      this.#receiveButton.set_label("Receive Mode");
+      this.#receiveButton.get_style_context().remove_class("inactive");
+      this.#receiveButton.get_style_context().add_class("active");
       this.#statusIndicator.set_text("● Sharing Stopped");
       this.#statusIndicator.get_style_context().remove_class("status-active");
       this.#statusIndicator.get_style_context().add_class("status-inactive");
@@ -241,6 +297,31 @@ headerbar {
     } else {
       worker.postMessage({ type: "stop-sharing" });
     }
+  };
+
+  #toggleReceiveMode = () => {
+    this.#isReceiveMode = !this.#isReceiveMode;
+
+    if (this.#isReceiveMode) {
+      // Enable receive mode
+      worker.postMessage({
+        type: "set-receive-mode",
+        enabled: true,
+      });
+      worker.postMessage({
+        type: "set-download-dir",
+        path: this.#downloadDir,
+      });
+    } else {
+      // Disable receive mode
+      worker.postMessage({
+        type: "set-receive-mode",
+        enabled: false,
+      });
+      this.#label.set_text("Drop file or Ctrl+V to paste");
+    }
+
+    this.#updateSharingUI();
   };
 
   #createHeaderBar = () => {
@@ -259,6 +340,8 @@ headerbar {
     menu.append("Open File (Ctrl+O)", "app.open-file");
     menu.append("Open Directory (Ctrl+Shift+O)", "app.open-directory");
     menu.append("Toggle Sharing (Ctrl+T)", "app.toggle-sharing");
+    menu.append("Toggle Receive Mode (Ctrl+R)", "app.toggle-receive");
+    menu.append("Set Download Directory", "app.set-download-dir");
     menu.append("About Share", "app.about");
 
     return header;
@@ -302,6 +385,19 @@ headerbar {
       }),
       ["<primary>t"],
     );
+    this.#createAction(
+      "toggle-receive",
+      python.callback(() => {
+        this.#toggleReceiveMode();
+      }),
+      ["<primary>r"],
+    );
+    this.#createAction(
+      "set-download-dir",
+      python.callback(() => {
+        this.#selectDownloadDirectory();
+      }),
+    );
 
     // Create actions after methods are defined
     this.#createAction("about", this.#showAbout);
@@ -311,6 +407,14 @@ headerbar {
       python.callback(this.#openDirectoryDialog),
     );
     this.#createAction("toggle-sharing", python.callback(this.#toggleSharing));
+    this.#createAction(
+      "toggle-receive",
+      python.callback(this.#toggleReceiveMode),
+    );
+    this.#createAction(
+      "set-download-dir",
+      python.callback(this.#selectDownloadDirectory),
+    );
   };
 
   #createAction = (name: string, callback: Callback, shortcuts?: [string]) => {
@@ -499,6 +603,16 @@ headerbar {
         this.#toggleSharing();
         return true;
       }
+      if (
+        keyval === Gdk.KEY_r.valueOf() &&
+        //@ts-ignore: exists in pyobject
+        state.__and__(Gdk.ModifierType.CONTROL_MASK)
+          .__eq__(Gdk.ModifierType.CONTROL_MASK)
+          .valueOf()
+      ) {
+        this.#toggleReceiveMode();
+        return true;
+      }
       return false;
     },
   );
@@ -587,6 +701,37 @@ headerbar {
     } else {
       console.warn("No image found in clipboard");
     }
+  };
+
+  #selectDownloadDirectory = () => {
+    const dialog = Gtk.FileDialog();
+    dialog.set_title("Select Download Directory");
+
+    dialog.select_folder(
+      this,
+      null,
+      python.callback(
+        // deno-lint-ignore no-explicit-any
+        (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
+          try {
+            const file = dialog.select_folder_finish(result);
+            this.#downloadDir = file.get_path().valueOf();
+            worker.postMessage({
+              type: "set-download-dir",
+              path: this.#downloadDir,
+            });
+
+            if (this.#isReceiveMode) {
+              this.#label.set_text(
+                `Files will be saved to: ${this.#downloadDir.split("/").pop()}`,
+              );
+            }
+          } catch (error) {
+            console.log("Directory dialog cancelled or error:", error);
+          }
+        },
+      ),
+    );
   };
 
   #onCloseRequest = () => {
