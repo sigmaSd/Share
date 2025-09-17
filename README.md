@@ -26,7 +26,7 @@ files:
 2. Share the QR code with others
 3. They scan it and get an upload interface in their web browser
 4. They can drag & drop files/folders or click to browse and select
-5. Files are automatically saved to your Downloads folder (configurable)
+5. Files are automatically saved to your Downloads folder
 
 **Key Features:**
 
