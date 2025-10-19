@@ -11,7 +11,7 @@ import {
   NamedArgument,
   python,
   // deno-lint-ignore no-import-prefix
-} from "jsr:@sigma/gtk-py@0.6.7";
+} from "jsr:@sigma/gtk-py@0.7.0";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");
@@ -51,7 +51,7 @@ class MainWindow extends Adw.ApplicationWindow {
     this.#url = url;
     this.set_title("Share");
     this.set_default_size(400, 400);
-    this.connect("close-request", python.callback(this.#onCloseRequest));
+    this.connect("close-request", this.#onCloseRequest);
 
     this.#app = kwArg.value.valueOf() as Adw_.Application;
 
@@ -204,9 +204,9 @@ headerbar {
     this.#copyButton.set_tooltip_text("Copy URL");
     this.#copyButton.connect(
       "clicked",
-      python.callback(() => {
+      () => {
         this.#clipboard.set(this.#url);
-      }),
+      },
     );
 
     this.#urlBox.append(this.#urlLabel);
@@ -223,9 +223,9 @@ headerbar {
     this.#shareButton.set_tooltip_text("Toggle sharing on/off (Ctrl+T)");
     this.#shareButton.connect(
       "clicked",
-      python.callback(() => {
+      () => {
         this.#toggleSharing();
-      }),
+      },
     );
 
     this.#receiveButton = Gtk.Button(kw`label="Receive Mode"`);
@@ -234,9 +234,9 @@ headerbar {
     this.#receiveButton.set_tooltip_text("Toggle receive mode (Ctrl+R)");
     this.#receiveButton.connect(
       "clicked",
-      python.callback(() => {
+      () => {
         this.#toggleReceiveMode();
-      }),
+      },
     );
 
     this.#statusIndicator = Gtk.Label(kw`label="● Sharing Active"`);
@@ -349,64 +349,68 @@ headerbar {
   #createShortcuts = () => {
     this.#createAction(
       "quit",
-      python.callback(() => {
+      () => {
         this.#onCloseRequest();
         this.#app.quit();
-      }),
+      },
       ["<primary>q"],
     );
     this.#createAction(
       "close",
-      python.callback(() => {
+      () => {
         this.#onCloseRequest();
         this.#app.quit();
-      }),
+      },
       ["<primary>w"],
     );
     this.#createAction(
       "open-file",
-      python.callback(() => {
+      () => {
         this.#openFileDialog();
-      }),
+      },
       ["<primary>o"],
     );
     this.#createAction(
       "open-directory",
-      python.callback(() => {
+      () => {
         this.#openDirectoryDialog();
-      }),
+      },
       ["<primary><shift>o"],
     );
     this.#createAction(
       "toggle-sharing",
-      python.callback(() => {
+      () => {
         this.#toggleSharing();
-      }),
+      },
       ["<primary>t"],
     );
     this.#createAction(
       "toggle-receive",
-      python.callback(() => {
+      () => {
         this.#toggleReceiveMode();
-      }),
+      },
       ["<primary>r"],
     );
 
     // Create actions after methods are defined
     this.#createAction("about", this.#showAbout);
-    this.#createAction("open-file", python.callback(this.#openFileDialog));
+    this.#createAction("open-file", this.#openFileDialog);
     this.#createAction(
       "open-directory",
-      python.callback(this.#openDirectoryDialog),
+      this.#openDirectoryDialog,
     );
-    this.#createAction("toggle-sharing", python.callback(this.#toggleSharing));
+    this.#createAction("toggle-sharing", this.#toggleSharing);
     this.#createAction(
       "toggle-receive",
-      python.callback(this.#toggleReceiveMode),
+      this.#toggleReceiveMode,
     );
   };
 
-  #createAction = (name: string, callback: Callback, shortcuts?: [string]) => {
+  #createAction = (
+    name: string,
+    callback: Callback | (() => void),
+    shortcuts?: [string],
+  ) => {
     const action = Gio.SimpleAction.new(name);
     action.connect("activate", callback);
     this.#app.add_action(action);
@@ -441,23 +445,21 @@ headerbar {
     dialog.open(
       this,
       null,
-      python.callback(
-        // deno-lint-ignore no-explicit-any
-        (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
-          try {
-            const file = dialog.open_finish(result);
-            const filePath = file.get_path().valueOf();
-            const fileName = filePath.split("/").pop();
+      // deno-lint-ignore no-explicit-any
+      (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
+        try {
+          const file = dialog.open_finish(result);
+          const filePath = file.get_path().valueOf();
+          const fileName = filePath.split("/").pop();
 
-            if (fileName) {
-              this.#label.set_text(`file: ${fileName}`);
-              worker.postMessage({ type: "file", path: filePath });
-            }
-          } catch (error) {
-            console.log("File dialog cancelled or error:", error);
+          if (fileName) {
+            this.#label.set_text(`file: ${fileName}`);
+            worker.postMessage({ type: "file", path: filePath });
           }
-        },
-      ),
+        } catch (error) {
+          console.log("File dialog cancelled or error:", error);
+        }
+      },
     );
   };
 
@@ -468,27 +470,25 @@ headerbar {
     dialog.select_folder(
       this,
       null,
-      python.callback(
-        // deno-lint-ignore no-explicit-any
-        (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
-          try {
-            const file = dialog.select_folder_finish(result);
-            const dirPath = file.get_path().valueOf();
-            const dirName = dirPath.split("/").pop();
+      // deno-lint-ignore no-explicit-any
+      (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
+        try {
+          const file = dialog.select_folder_finish(result);
+          const dirPath = file.get_path().valueOf();
+          const dirName = dirPath.split("/").pop();
 
-            if (dirName) {
-              this.#label.set_text(`directory: ${dirName}`);
-              worker.postMessage({ type: "file", path: dirPath });
-            }
-          } catch (error) {
-            console.log("Directory dialog cancelled or error:", error);
+          if (dirName) {
+            this.#label.set_text(`directory: ${dirName}`);
+            worker.postMessage({ type: "file", path: dirPath });
           }
-        },
-      ),
+        } catch (error) {
+          console.log("Directory dialog cancelled or error:", error);
+        }
+      },
     );
   };
 
-  #showAbout = python.callback(() => {
+  #showAbout = () => {
     const dialog = Adw.AboutWindow(
       new NamedArgument("transient_for", this.#app.get_active_window()),
     );
@@ -504,107 +504,103 @@ headerbar {
     dialog.set_application_icon("io.github.sigmasd.share");
 
     dialog.set_visible(true);
-  });
+  };
 
-  #onDrop = python.callback(
-    (_a1: object, _dropTarget: Gtk_.DropTarget, file: Gio_.File) => {
-      let filePath;
-      let fileName;
+  #onDrop = (_a1: object, _dropTarget: Gtk_.DropTarget, file: Gio_.File) => {
+    let filePath;
+    let fileName;
 
-      if (typeof file.get_path().valueOf() === "string") {
-        filePath = file.get_path().valueOf();
-        fileName = filePath.split("/").pop() ?? null;
+    if (typeof file.get_path().valueOf() === "string") {
+      filePath = file.get_path().valueOf();
+      fileName = filePath.split("/").pop() ?? null;
+    } else {
+      // Handle file without a path
+      const [success, contents] = file.load_contents();
+      if (success.valueOf()) {
+        fileName = "Dropped File";
+        filePath = Deno.makeTempFileSync();
+        // keep writeFile async, so it dones't block the ui
+        // somehow it works with gio event loop
+        Deno.writeFile(
+          filePath,
+          new Uint8Array(python.list(contents).valueOf()),
+        );
       } else {
-        // Handle file without a path
-        const [success, contents] = file.load_contents();
-        if (success.valueOf()) {
-          fileName = "Dropped File";
-          filePath = Deno.makeTempFileSync();
-          // keep writeFile async, so it dones't block the ui
-          // somehow it works with gio event loop
-          Deno.writeFile(
-            filePath,
-            new Uint8Array(python.list(contents).valueOf()),
-          );
-        } else {
-          console.warn("Failed to read contents of the dropped file");
-          return false;
-        }
-      }
-
-      if (!fileName) {
-        console.warn("Could not detect filename from this file");
+        console.warn("Failed to read contents of the dropped file");
         return false;
       }
+    }
 
-      this.#label.set_text(`file: ${fileName}`);
-      worker.postMessage({ type: "file", path: filePath });
-      return true;
-    },
-  );
-
-  #onKeyPressed = python.callback(
-    (
-      // deno-lint-ignore no-explicit-any
-      _: any,
-      _controller: Gtk_.EventControllerKey,
-      keyval: number,
-      _keycode: number,
-      state: Gdk_.ModifierType,
-    ) => {
-      if (
-        keyval === Gdk.KEY_v.valueOf() &&
-        //@ts-ignore: exists in pyobject
-        state.__and__(Gdk.ModifierType.CONTROL_MASK)
-          .__eq__(Gdk.ModifierType.CONTROL_MASK)
-          .valueOf()
-      ) {
-        this.#handlePaste();
-        return true;
-      }
-      if (
-        keyval === Gdk.KEY_o.valueOf() &&
-        //@ts-ignore: exists in pyobject
-        state.__and__(Gdk.ModifierType.CONTROL_MASK)
-          .__eq__(Gdk.ModifierType.CONTROL_MASK)
-          .valueOf()
-      ) {
-        // Check if Shift is also pressed
-        if (
-          //@ts-ignore: exists in pyobject
-          state.__and__(Gdk.ModifierType.SHIFT_MASK)
-            .__eq__(Gdk.ModifierType.SHIFT_MASK)
-            .valueOf()
-        ) {
-          this.#openDirectoryDialog();
-        } else {
-          this.#openFileDialog();
-        }
-        return true;
-      }
-      if (
-        keyval === Gdk.KEY_t.valueOf() &&
-        //@ts-ignore: exists in pyobject
-        state.__and__(Gdk.ModifierType.CONTROL_MASK)
-          .__eq__(Gdk.ModifierType.CONTROL_MASK)
-          .valueOf()
-      ) {
-        this.#toggleSharing();
-        return true;
-      }
-      if (
-        keyval === Gdk.KEY_r.valueOf() &&
-        //@ts-ignore: exists in pyobject
-        state.__and__(Gdk.ModifierType.CONTROL_MASK)
-          .__eq__(Gdk.ModifierType.CONTROL_MASK)
-          .valueOf()
-      ) {
-        this.#toggleReceiveMode();
-        return true;
-      }
+    if (!fileName) {
+      console.warn("Could not detect filename from this file");
       return false;
-    },
-  );
+    }
+
+    this.#label.set_text(`file: ${fileName}`);
+    worker.postMessage({ type: "file", path: filePath });
+    return true;
+  };
+
+  #onKeyPressed = (
+    // deno-lint-ignore no-explicit-any
+    _: any,
+    _controller: Gtk_.EventControllerKey,
+    keyval: number,
+    _keycode: number,
+    state: Gdk_.ModifierType,
+  ) => {
+    if (
+      keyval === Gdk.KEY_v.valueOf() &&
+      //@ts-ignore: exists in pyobject
+      state.__and__(Gdk.ModifierType.CONTROL_MASK)
+        .__eq__(Gdk.ModifierType.CONTROL_MASK)
+        .valueOf()
+    ) {
+      this.#handlePaste();
+      return true;
+    }
+    if (
+      keyval === Gdk.KEY_o.valueOf() &&
+      //@ts-ignore: exists in pyobject
+      state.__and__(Gdk.ModifierType.CONTROL_MASK)
+        .__eq__(Gdk.ModifierType.CONTROL_MASK)
+        .valueOf()
+    ) {
+      // Check if Shift is also pressed
+      if (
+        //@ts-ignore: exists in pyobject
+        state.__and__(Gdk.ModifierType.SHIFT_MASK)
+          .__eq__(Gdk.ModifierType.SHIFT_MASK)
+          .valueOf()
+      ) {
+        this.#openDirectoryDialog();
+      } else {
+        this.#openFileDialog();
+      }
+      return true;
+    }
+    if (
+      keyval === Gdk.KEY_t.valueOf() &&
+      //@ts-ignore: exists in pyobject
+      state.__and__(Gdk.ModifierType.CONTROL_MASK)
+        .__eq__(Gdk.ModifierType.CONTROL_MASK)
+        .valueOf()
+    ) {
+      this.#toggleSharing();
+      return true;
+    }
+    if (
+      keyval === Gdk.KEY_r.valueOf() &&
+      //@ts-ignore: exists in pyobject
+      state.__and__(Gdk.ModifierType.CONTROL_MASK)
+        .__eq__(Gdk.ModifierType.CONTROL_MASK)
+        .valueOf()
+    ) {
+      this.#toggleReceiveMode();
+      return true;
+    }
+    return false;
+  };
 
   #handlePaste = () => {
     this.#clipboard.read_async(
@@ -621,7 +617,7 @@ headerbar {
     );
   };
 
-  #onClipboardRead = python.callback(
+  #onClipboardRead =
     // deno-lint-ignore no-explicit-any
     (_: any, clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) => {
       const [_inputStream, value] = clipboard.read_finish(result);
@@ -629,26 +625,21 @@ headerbar {
       if (mimeType.startsWith("text/")) {
         clipboard.read_text_async(
           null,
-          python.callback(
-            // deno-lint-ignore no-explicit-any
-            (_: any, _clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) =>
-              this.#onTextReceived(result, mimeType),
-          ),
+          // deno-lint-ignore no-explicit-any
+          (_: any, _clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) =>
+            this.#onTextReceived(result, mimeType),
         );
       } else if (mimeType.startsWith("image/")) {
         clipboard.read_texture_async(
           null,
-          python.callback(
-            // deno-lint-ignore no-explicit-any
-            (_: any, _clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) =>
-              this.#onImageReceived(result),
-          ),
+          // deno-lint-ignore no-explicit-any
+          (_: any, _clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) =>
+            this.#onImageReceived(result),
         );
       } else {
         console.warn("Unsupported clipboard content type:", mimeType);
       }
-    },
-  );
+    };
 
   // deno-lint-ignore no-explicit-any
   #onTextReceived = (result: any, mimeType: string) => {
@@ -710,13 +701,14 @@ class App extends Adw.Application {
     this.connect("activate", this.onActivate);
   }
 
-  onActivate = python.callback((_kwarg, app: Adw_.Application) => {
+  // deno-lint-ignore no-explicit-any
+  onActivate = (_kwarg: any, app: Adw_.Application) => {
     this.#win = new MainWindow(
       new NamedArgument("application", app),
       this.#url,
     );
     this.#win.present();
-  });
+  };
 }
 
 if (import.meta.main) {
@@ -733,11 +725,11 @@ if (import.meta.main) {
         GLib.unix_signal_add(
           GLib.PRIORITY_HIGH,
           signal.SIGINT,
-          python.callback(() => {
+          () => {
             worker.terminate();
             Deno.removeSync(qrPath);
             app.quit();
-          }),
+          },
         );
         app.run(Deno.args);
         break;

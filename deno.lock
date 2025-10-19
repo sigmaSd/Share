@@ -4,14 +4,8 @@
     "jsr:@david/dax@0.43.1": "0.43.1",
     "jsr:@david/path@0.2": "0.2.0",
     "jsr:@david/which@~0.4.1": "0.4.1",
-    "jsr:@denosaurs/python@0.4.4": "0.4.4",
-    "jsr:@denosaurs/python@0.4.5": "0.4.5",
-    "jsr:@sigma/gtk-py@0.4.29": "0.4.29",
-    "jsr:@sigma/gtk-py@0.6.3": "0.6.3",
-    "jsr:@sigma/gtk-py@0.6.4": "0.6.4",
-    "jsr:@sigma/gtk-py@0.6.5": "0.6.5",
-    "jsr:@sigma/gtk-py@0.6.6": "0.6.6",
-    "jsr:@sigma/gtk-py@0.6.7": "0.6.7",
+    "jsr:@denosaurs/python@0.4.6": "0.4.6",
+    "jsr:@sigma/gtk-py@0.7.0": "0.7.0",
     "jsr:@sigmasd/qrpng@0.1.3": "0.1.3",
     "jsr:@std/bytes@^1.0.5": "1.0.6",
     "jsr:@std/cli@^1.0.17": "1.0.17",
@@ -52,46 +46,13 @@
     "@david/which@0.4.1": {
       "integrity": "896a682b111f92ab866cc70c5b4afab2f5899d2f9bde31ed00203b9c250f225e"
     },
-    "@denosaurs/python@0.4.4": {
-      "integrity": "0eca587ac3a60ed5bce73ac9612126de39d7c26b0a98c03044838fd94aba812f"
+    "@denosaurs/python@0.4.6": {
+      "integrity": "040ca5d73abbadc4baf41606420a8b32856469ad7889e9c9f3b105f8d0ac1924"
     },
-    "@denosaurs/python@0.4.5": {
-      "integrity": "c801f16b6daf1c98f9ee113a646b9cf42be8ef1dff4892714a44841308354127"
-    },
-    "@sigma/gtk-py@0.4.29": {
-      "integrity": "6756de606065749d48a4a0b9546b94c1ac04af5c66ab126e9db9e408a0ac83f1",
+    "@sigma/gtk-py@0.7.0": {
+      "integrity": "cb58dc433a34c7e8dda030b7c509925fbb50bea918de929c8c47bf5fb5ec6627",
       "dependencies": [
-        "jsr:@denosaurs/python@0.4.4"
-      ]
-    },
-    "@sigma/gtk-py@0.6.3": {
-      "integrity": "58a3e8e28d064cd676abc358e0cc06c53c95ab66c1f7cadef20013775351c2e0",
-      "dependencies": [
-        "jsr:@denosaurs/python@0.4.4"
-      ]
-    },
-    "@sigma/gtk-py@0.6.4": {
-      "integrity": "875504ee9a21d828d0f0c77f0bf721d4385d4f6d4230df7b6f52d36da917daf8",
-      "dependencies": [
-        "jsr:@denosaurs/python@0.4.4"
-      ]
-    },
-    "@sigma/gtk-py@0.6.5": {
-      "integrity": "f19b0c937b1b962f4b69c676a8ad768651faa5d7016c6b476029ca48a7541f34",
-      "dependencies": [
-        "jsr:@denosaurs/python@0.4.5"
-      ]
-    },
-    "@sigma/gtk-py@0.6.6": {
-      "integrity": "f9f122a38dc40a6500923a77ea91f5072f770b5769d130b9f476e3428fd71c58",
-      "dependencies": [
-        "jsr:@denosaurs/python@0.4.5"
-      ]
-    },
-    "@sigma/gtk-py@0.6.7": {
-      "integrity": "c03ff37be4c191c29c3a92ac3108b579a5b84fe0d1bca1efea87f40c5cef6a6a",
-      "dependencies": [
-        "jsr:@denosaurs/python@0.4.5"
+        "jsr:@denosaurs/python"
       ]
     },
     "@sigmasd/qrpng@0.1.3": {
