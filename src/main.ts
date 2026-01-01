@@ -1,5 +1,4 @@
 #!/usr/bin/env -S deno run --allow-all --unstable-ffi
-import { homedir } from "node:os";
 import {
   type Adw1_ as Adw_,
   Callback,
@@ -245,7 +244,7 @@ headerbar {
     this.#statusIndicator.set_halign(Gtk.Align.CENTER);
 
     // Initialize download directory
-    this.#downloadDir = `${homedir()}/Downloads`;
+    this.#downloadDir = getDownloadDir();
 
     // Update initial UI state
     this.#updateSharingUI();
@@ -745,4 +744,12 @@ function canAccessFile(path: string) {
   } catch {
     return false;
   }
+}
+
+function getDownloadDir(): string {
+  return new TextDecoder().decode(
+    new Deno.Command("xdg-user-dir", { args: ["DOWNLOAD"] })
+      .outputSync()
+      .stdout,
+  ).trim();
 }
