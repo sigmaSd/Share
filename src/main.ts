@@ -251,39 +251,41 @@ headerbar {
   };
 
   #updateSharingUI = () => {
-    if (this.#isReceiveMode) {
-      this.#shareButton.set_visible(false);
-      this.#receiveButton.set_label("Exit Receive Mode");
-      this.#receiveButton.get_style_context().remove_class("active");
-      this.#receiveButton.get_style_context().add_class("inactive");
-      this.#statusIndicator.set_text("📥 Receiving Files");
-      this.#statusIndicator.get_style_context().remove_class("status-inactive");
-      this.#statusIndicator.get_style_context().add_class("status-active");
-      this.#label.set_text(
-        `Files will be saved to: ${this.#downloadDir.split("/").pop()}`,
-      );
-    } else if (this.#isSharing) {
-      this.#shareButton.set_visible(true);
+    if (this.#isSharing) {
       this.#shareButton.set_label("Stop Sharing");
       this.#shareButton.get_style_context().remove_class("active");
       this.#shareButton.get_style_context().add_class("inactive");
-      this.#receiveButton.set_label("Receive Mode");
-      this.#receiveButton.get_style_context().remove_class("inactive");
-      this.#receiveButton.get_style_context().add_class("active");
-      this.#statusIndicator.set_text("● Sharing Active");
       this.#statusIndicator.get_style_context().remove_class("status-inactive");
       this.#statusIndicator.get_style_context().add_class("status-active");
     } else {
-      this.#shareButton.set_visible(true);
       this.#shareButton.set_label("Start Sharing");
       this.#shareButton.get_style_context().remove_class("inactive");
       this.#shareButton.get_style_context().add_class("active");
+      this.#statusIndicator.get_style_context().remove_class("status-active");
+      this.#statusIndicator.get_style_context().add_class("status-inactive");
+    }
+
+    this.#shareButton.set_visible(true);
+
+    if (this.#isReceiveMode) {
+      this.#receiveButton.set_label("Exit Receive Mode");
+      this.#receiveButton.get_style_context().remove_class("active");
+      this.#receiveButton.get_style_context().add_class("inactive");
+      this.#statusIndicator.set_text(
+        this.#isSharing
+          ? "📥 Receiving Files (Sharing Active)"
+          : "📥 Receiving Files (Sharing Stopped)",
+      );
+      this.#label.set_text(
+        `Files will be saved to: ${this.#downloadDir.split("/").pop()}`,
+      );
+    } else {
       this.#receiveButton.set_label("Receive Mode");
       this.#receiveButton.get_style_context().remove_class("inactive");
       this.#receiveButton.get_style_context().add_class("active");
-      this.#statusIndicator.set_text("● Sharing Stopped");
-      this.#statusIndicator.get_style_context().remove_class("status-active");
-      this.#statusIndicator.get_style_context().add_class("status-inactive");
+      this.#statusIndicator.set_text(
+        this.#isSharing ? "● Sharing Active" : "● Sharing Stopped",
+      );
     }
   };
 
@@ -453,6 +455,8 @@ headerbar {
 
           if (fileName) {
             this.#label.set_text(`file: ${fileName}`);
+            this.#isReceiveMode = false;
+            this.#updateSharingUI();
             worker.postMessage({ type: "file", path: filePath });
           }
         } catch (error) {
@@ -478,6 +482,8 @@ headerbar {
 
           if (dirName) {
             this.#label.set_text(`directory: ${dirName}`);
+            this.#isReceiveMode = false;
+            this.#updateSharingUI();
             worker.postMessage({ type: "file", path: dirPath });
           }
         } catch (error) {
@@ -536,6 +542,8 @@ headerbar {
     }
 
     this.#label.set_text(`file: ${fileName}`);
+    this.#isReceiveMode = false;
+    this.#updateSharingUI();
     worker.postMessage({ type: "file", path: filePath });
     return true;
   };
@@ -644,6 +652,8 @@ headerbar {
   #onTextReceived = (result: any, mimeType: string) => {
     const text = this.#clipboard.read_text_finish(result).valueOf();
     if (text) {
+      this.#isReceiveMode = false;
+      this.#updateSharingUI();
       if (mimeType.startsWith("text/uri-list") || text.startsWith("file://")) {
         // This is a file URI
         const filePath = text.replace("file://", "").trim();
@@ -673,6 +683,8 @@ headerbar {
     const texture = this.#clipboard.read_texture_finish(result);
     if (texture) {
       this.#label.set_text("image: Pasted image");
+      this.#isReceiveMode = false;
+      this.#updateSharingUI();
       // Save the texture as a temporary file
       const tempFilePath = Deno.makeTempFileSync({ suffix: ".png" });
       texture.save_to_png(tempFilePath);
