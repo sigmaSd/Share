@@ -11,7 +11,7 @@ import {
   NamedArgument,
   python,
   // deno-lint-ignore no-import-prefix
-} from "jsr:@sigma/gtk-py@0.7.0";
+} from "jsr:@sigma/gtk-py@0.11.0";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");

@@ -9,6 +9,7 @@ import emptyPage from "./ui/empty.html" with { type: "text" };
 import errorPage from "./ui/error.html" with { type: "text" };
 import uploadPage from "./ui/upload.html" with { type: "text" };
 import stopPage from "./ui/stop.html" with { type: "text" };
+import assert from "node:assert";
 
 function getLocalAddr() {
   return Deno.networkInterfaces().filter((int) =>
@@ -22,7 +23,7 @@ if (import.meta.main) {
   let qrPath: string;
   let isSharing: boolean = true;
   let isReceiveMode: boolean = false;
-  let downloadDir: string = join(Deno.env.get("HOME") || "/tmp", "Downloads");
+  let downloadDir: string | null = null;
 
   const startServer = () => {
     Deno.serve({
@@ -66,6 +67,10 @@ if (import.meta.main) {
           const files = formData.getAll("files") as File[];
 
           // Ensure download directory exists
+          assert(
+            downloadDir,
+            "downloadDir needs to be set before upload message",
+          );
           await ensureDir(downloadDir);
 
           for (const file of files) {
