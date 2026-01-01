@@ -50,6 +50,8 @@ class MainWindow extends Adw.ApplicationWindow {
     this.#url = url;
     this.set_title("Share");
     this.set_default_size(400, 400);
+    // @ts-ignore it works
+    this.set_resizable(false);
     this.connect("close-request", this.#onCloseRequest);
 
     this.#app = kwArg.value.valueOf() as Adw_.Application;
@@ -62,84 +64,53 @@ class MainWindow extends Adw.ApplicationWindow {
     // Apply CSS to the window
     const cssProvider = Gtk.CssProvider();
     cssProvider.load_from_data(`\
-.main-window {
-  background-color: #f0f0f0;
-}
 .instruction-label {
-  font-size: 18px;
-  font-weight: bold;
-  color: #333333;
-  margin: 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 .content-box {
-  background-color: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+  padding: 2rem;
+}
+.qr-card {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
 }
 .url-box {
-  font-size: 18px;
-  font-weight: bold;
-  color: #333333;
-  margin-top: 10px;
-  padding: 5px;
-  background-color: #f5f5f5;
-  border-radius: 5px;
+  background-color: alpha(@window_fg_color, 0.05);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid alpha(@window_fg_color, 0.1);
+  margin-bottom: 1.5rem;
 }
-.share-button {
-  margin: 5px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  min-height: 40px;
+.url-label {
+  font-family: monospace;
+  font-size: 1rem;
 }
-.share-button.active {
-  background-color: #28a745;
-  color: white;
-}
-.share-button.inactive {
-  background-color: #dc3545;
-  color: white;
-}
-.receive-button {
-  margin: 5px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  min-height: 40px;
-}
-.receive-button.active {
-  background-color: #007bff;
-  color: white;
-}
-.receive-button.inactive {
-  background-color: #6c757d;
-  color: white;
+.controls-box {
+  margin-top: 1rem;
 }
 .status-indicator {
-  font-size: 14px;
-  font-weight: bold;
-  margin: 5px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  margin-top: 1.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-weight: 600;
 }
 .status-active {
-  color: #28a745;
-  background-color: rgba(40, 167, 69, 0.1);
+  background-color: alpha(@success_bg_color, 0.2);
+  color: @success_color;
 }
 .status-inactive {
-  color: #dc3545;
-  background-color: rgba(220, 53, 69, 0.1);
+  background-color: alpha(@error_bg_color, 0.2);
+  color: @error_color;
 }
-/* Ensure header bar is visible in light mode */
-headerbar {
-  background: @headerbar_bg_color;
-  border-bottom: 1px solid @borders;
-  box-shadow: inset 0 1px @headerbar_backdrop_color;
-}`);
+.success-color {
+  color: @success_color;
+}
+`);
     Gtk.StyleContext.add_provider_for_display(
       Gdk.Display.get_default(),
       cssProvider,
@@ -156,26 +127,41 @@ headerbar {
 
     this.#picture = Gtk.Picture();
     this.#picture.set_filename(qrPath);
-    this.#picture.set_size_request(200, 200);
+    this.#picture.set_size_request(240, 240);
     this.#picture.set_keep_aspect_ratio(true);
+
+    const qrCard = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
+    qrCard.get_style_context().add_class("qr-card");
+    qrCard.set_halign(Gtk.Align.CENTER);
+    qrCard.append(this.#picture);
 
     this.#createUrlBox();
     this.#createShareControls();
 
+    const controlsBox = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
+    controlsBox.get_style_context().add_class("controls-box");
+    controlsBox.set_spacing(10);
+    controlsBox.append(this.#shareButton);
+    controlsBox.append(this.#receiveButton);
+
     this.#contentBox = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
     this.#contentBox.get_style_context().add_class("content-box");
+    this.#contentBox.set_valign(Gtk.Align.CENTER);
     this.#contentBox.append(this.#label);
-    this.#contentBox.append(this.#picture);
+    this.#contentBox.append(qrCard);
     this.#contentBox.append(this.#urlBox);
-    this.#contentBox.append(this.#shareButton);
-    this.#contentBox.append(this.#receiveButton);
+    this.#contentBox.append(controlsBox);
     this.#contentBox.append(this.#statusIndicator);
+
+    const clamp = Adw.Clamp();
+    clamp.set_maximum_size(450);
+    clamp.set_child(this.#contentBox);
 
     // Set up the ToolbarView with header and content
     const header = this.#createHeaderBar();
     const toolbarView = Adw.ToolbarView();
     toolbarView.add_top_bar(header);
-    toolbarView.set_content(this.#contentBox);
+    toolbarView.set_content(clamp);
     this.set_content(toolbarView);
 
     this.#dropTarget = Gtk.DropTarget.new(
@@ -191,20 +177,49 @@ headerbar {
     this.add_controller(keyController);
   }
 
+  #showCopyFeedback = () => {
+    //@ts-ignore TODO update gtk py
+    const originalText: string = this.#urlLabel.get_text();
+    this.#urlLabel.set_text("Copied to clipboard!");
+    this.#urlLabel.get_style_context().add_class("success-color");
+
+    GLib.timeout_add(
+      500,
+      () => {
+        this.#urlLabel.set_text(originalText);
+        this.#urlLabel.get_style_context().remove_class("success-color");
+        return false;
+      },
+    );
+  };
+
   #createUrlBox = () => {
     this.#urlBox = Gtk.Box(kw`orientation=${Gtk.Orientation.HORIZONTAL}`);
     this.#urlBox.set_spacing(10);
     this.#urlBox.set_halign(Gtk.Align.CENTER);
 
     this.#urlLabel = Gtk.Label(kw`label=${this.#url}`);
+    this.#urlLabel.get_style_context().add_class("url-label");
+    // @ts-ignore it works
+    this.#urlLabel.set_cursor(Gdk.Cursor.new_from_name("default", null));
+
+    const labelClick = Gtk.GestureClick.new();
+    // @ts-ignore it works
+    labelClick.connect("released", () => {
+      this.#clipboard.set(this.#url);
+      this.#showCopyFeedback();
+    });
+    this.#urlLabel.add_controller(labelClick);
 
     this.#copyButton = Gtk.Button(kw`label=""`);
     this.#copyButton.set_icon_name("edit-copy-symbolic");
     this.#copyButton.set_tooltip_text("Copy URL");
+    this.#copyButton.get_style_context().add_class("flat");
     this.#copyButton.connect(
       "clicked",
       () => {
         this.#clipboard.set(this.#url);
+        this.#showCopyFeedback();
       },
     );
 
@@ -217,8 +232,7 @@ headerbar {
 
   #createShareControls = () => {
     this.#shareButton = Gtk.Button(kw`label="Stop Sharing"`);
-    this.#shareButton.get_style_context().add_class("share-button");
-    this.#shareButton.get_style_context().add_class("inactive");
+    this.#shareButton.get_style_context().add_class("pill");
     this.#shareButton.set_tooltip_text("Toggle sharing on/off (Ctrl+T)");
     this.#shareButton.connect(
       "clicked",
@@ -228,8 +242,7 @@ headerbar {
     );
 
     this.#receiveButton = Gtk.Button(kw`label="Receive Mode"`);
-    this.#receiveButton.get_style_context().add_class("receive-button");
-    this.#receiveButton.get_style_context().add_class("active");
+    this.#receiveButton.get_style_context().add_class("pill");
     this.#receiveButton.set_tooltip_text("Toggle receive mode (Ctrl+R)");
     this.#receiveButton.connect(
       "clicked",
@@ -240,7 +253,6 @@ headerbar {
 
     this.#statusIndicator = Gtk.Label(kw`label="● Sharing Active"`);
     this.#statusIndicator.get_style_context().add_class("status-indicator");
-    this.#statusIndicator.get_style_context().add_class("status-active");
     this.#statusIndicator.set_halign(Gtk.Align.CENTER);
 
     // Initialize download directory
@@ -253,14 +265,14 @@ headerbar {
   #updateSharingUI = () => {
     if (this.#isSharing) {
       this.#shareButton.set_label("Stop Sharing");
-      this.#shareButton.get_style_context().remove_class("active");
-      this.#shareButton.get_style_context().add_class("inactive");
+      this.#shareButton.get_style_context().remove_class("suggested-action");
+      this.#shareButton.get_style_context().add_class("destructive-action");
       this.#statusIndicator.get_style_context().remove_class("status-inactive");
       this.#statusIndicator.get_style_context().add_class("status-active");
     } else {
       this.#shareButton.set_label("Start Sharing");
-      this.#shareButton.get_style_context().remove_class("inactive");
-      this.#shareButton.get_style_context().add_class("active");
+      this.#shareButton.get_style_context().remove_class("destructive-action");
+      this.#shareButton.get_style_context().add_class("suggested-action");
       this.#statusIndicator.get_style_context().remove_class("status-active");
       this.#statusIndicator.get_style_context().add_class("status-inactive");
     }
@@ -269,20 +281,20 @@ headerbar {
 
     if (this.#isReceiveMode) {
       this.#receiveButton.set_label("Exit Receive Mode");
-      this.#receiveButton.get_style_context().remove_class("active");
-      this.#receiveButton.get_style_context().add_class("inactive");
+      this.#receiveButton.get_style_context().add_class("destructive-action");
       this.#statusIndicator.set_text(
         this.#isSharing
           ? "📥 Receiving Files (Sharing Active)"
           : "📥 Receiving Files (Sharing Stopped)",
       );
       this.#label.set_text(
-        `Files will be saved to: ${this.#downloadDir.split("/").pop()}`,
+        `Saving to: ${this.#downloadDir.split("/").pop()}`,
       );
     } else {
       this.#receiveButton.set_label("Receive Mode");
-      this.#receiveButton.get_style_context().remove_class("inactive");
-      this.#receiveButton.get_style_context().add_class("active");
+      this.#receiveButton.get_style_context().remove_class(
+        "destructive-action",
+      );
       this.#statusIndicator.set_text(
         this.#isSharing ? "● Sharing Active" : "● Sharing Stopped",
       );
