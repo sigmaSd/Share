@@ -1,9 +1,8 @@
-// deno-lint-ignore-file no-import-prefix
-import { serveDir, serveFile } from "jsr:@std/http@1.0.16/file-server";
-import { qrPng } from "jsr:@sigmasd/qrpng@0.1.3";
-import { basename } from "jsr:@std/path@1/basename";
-import { join } from "jsr:@std/path@1/join";
-import { ensureDir } from "jsr:@std/fs@1.0.12/ensure-dir";
+import { serveDir, serveFile } from "@std/http/file-server";
+import { qrPng } from "@sigmasd/qrpng";
+import { basename } from "@std/path/basename";
+import { join } from "@std/path/join";
+import { ensureDir } from "@std/fs/ensure-dir";
 
 import emptyPage from "./ui/empty.html" with { type: "text" };
 import errorPage from "./ui/error.html" with { type: "text" };
@@ -24,10 +23,11 @@ if (import.meta.main) {
   let isSharing: boolean = true;
   let isReceiveMode: boolean = false;
   let downloadDir: string | null = null;
+  let port = 0;
 
   const startServer = () => {
     Deno.serve({
-      port: 0,
+      port,
       onListen: async (addr) => {
         const serverAddr = `http://${getLocalAddr()}:${addr.port}`;
         console.log("[worker] HTTP server running. Access it at:", serverAddr);
@@ -196,8 +196,13 @@ if (import.meta.main) {
         filePath = null; // Reset file path when text is shared
         isReceiveMode = false; // Switch to share mode when sharing text
         break;
-      case "qrPath":
-        qrPath = event.data.path;
+      case "init":
+        qrPath = event.data.qrPath;
+        if (event.data.port) port = event.data.port;
+        if (event.data.path) {
+          filePath = event.data.path;
+          isReceiveMode = false;
+        }
         startServer();
         break;
       case "start-sharing":

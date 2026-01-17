@@ -11,6 +11,8 @@ import {
   python,
   // deno-lint-ignore no-import-prefix
 } from "jsr:@sigma/gtk-py@0.11.0";
+import { parseArgs } from "@std/cli/parse-args";
+import { resolve } from "@std/path/resolve";
 import meta from "../deno.json" with { type: "json" };
 
 const gi = python.import("gi");
@@ -45,7 +47,7 @@ class MainWindow extends Adw.ApplicationWindow {
   #isReceiveMode: boolean = false;
   #downloadDir: string = "";
 
-  constructor(kwArg: NamedArgument, url: string) {
+  constructor(kwArg: NamedArgument, url: string, initialPath?: string) {
     super(kwArg);
     this.#url = url;
     this.set_title("Share");
@@ -175,6 +177,20 @@ class MainWindow extends Adw.ApplicationWindow {
     const keyController = Gtk.EventControllerKey.new();
     keyController.connect("key-pressed", this.#onKeyPressed);
     this.add_controller(keyController);
+
+    if (initialPath) {
+      const fileName = initialPath.split("/").pop();
+      try {
+        const isDir = Deno.statSync(initialPath).isDirectory;
+        this.#label.set_text(
+          isDir ? `directory: ${fileName}` : `file: ${fileName}`,
+        );
+        this.#isReceiveMode = false;
+        this.#updateSharingUI();
+      } catch (e) {
+        console.error("Failed to stat initial path:", e);
+      }
+    }
   }
 
   #showCopyFeedback = () => {
@@ -717,10 +733,12 @@ class MainWindow extends Adw.ApplicationWindow {
 class App extends Adw.Application {
   #win: MainWindow | undefined;
   #url: string;
+  #initialPath: string | undefined;
 
-  constructor(kwArg: NamedArgument, url: string) {
+  constructor(kwArg: NamedArgument, url: string, initialPath?: string) {
     super(kwArg);
     this.#url = url;
+    this.#initialPath = initialPath;
     this.connect("activate", this.onActivate);
   }
 
@@ -729,13 +747,38 @@ class App extends Adw.Application {
     this.#win = new MainWindow(
       new NamedArgument("application", app),
       this.#url,
+      this.#initialPath,
     );
     this.#win.present();
   };
 }
 
 if (import.meta.main) {
-  worker.postMessage({ type: "qrPath", path: qrPath });
+  const args = parseArgs(Deno.args, {
+    boolean: ["help"],
+    string: ["port", "path"],
+    default: { port: "0" },
+  });
+
+  if (args.help) {
+    console.log(`Share ${meta.version}
+Share files and text locally via QR code.
+
+Usage:
+  share [options]
+
+Options:
+  --help        Show this help message
+  --port <port> Port to listen on (default: random)
+  --path <path> Path to share (file or directory)
+`);
+    Deno.exit(0);
+  }
+
+  const port = parseInt(args.port, 10);
+  const path = args.path ? resolve(args.path) : undefined;
+
+  worker.postMessage({ type: "init", qrPath, port, path });
   worker.onmessage = (event) => {
     console.log("[main] received msg:", event.data);
     switch (event.data.type) {
@@ -743,6 +786,7 @@ if (import.meta.main) {
         const app = new App(
           kw`application_id=${"io.github.sigmasd.share"}`,
           event.data.url,
+          path,
         );
         const signal = python.import("signal");
         GLib.unix_signal_add(
@@ -754,7 +798,7 @@ if (import.meta.main) {
             app.quit();
           },
         );
-        app.run(Deno.args);
+        app.run([]);
         break;
       }
     }
