@@ -6,7 +6,7 @@
     "jsr:@david/which@~0.4.1": "0.4.1",
     "jsr:@denosaurs/python@0.4.6": "0.4.6",
     "jsr:@sigma/gtk-py@0.7.0": "0.7.0",
-    "jsr:@sigmasd/gtk@0.16": "0.16.0",
+    "jsr:@sigmasd/gtk@0.17": "0.17.0",
     "jsr:@sigmasd/qrpng@0.1.3": "0.1.3",
     "jsr:@sigmasd/qrpng@~0.1.3": "0.1.3",
     "jsr:@std/bytes@^1.0.5": "1.0.6",
@@ -66,8 +66,8 @@
         "jsr:@denosaurs/python"
       ]
     },
-    "@sigmasd/gtk@0.16.0": {
-      "integrity": "2f0555131985c31c0d554adc8cc4763150620b77be23de7056868b743d1fd990"
+    "@sigmasd/gtk@0.17.0": {
+      "integrity": "dcba815af68753e0767a33d0ee4973127c044e229c19433f70a1eba8a78460a2"
     },
     "@sigmasd/qrpng@0.1.3": {
       "integrity": "73fac5dc94e23a3082925138549a32712fe167018087d3f2498c86e85d817471"
@@ -186,7 +186,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@sigmasd/gtk@0.16",
+      "jsr:@sigmasd/gtk@0.17",
       "jsr:@sigmasd/qrpng@~0.1.3",
       "jsr:@std/cli@^1.0.25",
       "jsr:@std/fs@^1.0.21",

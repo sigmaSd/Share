@@ -17,7 +17,6 @@ import {
   Picture,
   PopoverMenu,
   StyleContext,
-  typeFromName,
   unixSignalAdd,
 } from "@sigmasd/gtk/gtk";
 import {
@@ -30,10 +29,14 @@ import {
 import { File as GFile, ListStore, Menu, SimpleAction } from "@sigmasd/gtk/gio";
 import {
   Align,
+  ApplicationFlags,
   DragAction,
   Key,
+  License,
   ModifierType,
   Orientation,
+  Priority,
+  UnixSignal,
 } from "@sigmasd/gtk/enums";
 import { timeout } from "@sigmasd/gtk/glib";
 import { parseArgs } from "@std/cli/parse-args";
@@ -130,7 +133,7 @@ class MainWindow extends AdwApplicationWindow {
     StyleContext.addProviderForDisplay(
       Display.getDefault()!,
       cssProvider,
-      600, // STYLE_PROVIDER_PRIORITY_APPLICATION
+      Priority.APPLICATION,
     );
 
     // Add CSS class to the window
@@ -179,11 +182,7 @@ class MainWindow extends AdwApplicationWindow {
     this.setContent(toolbarView);
 
     // Use GFile type for drop target
-    // Note: We need GType for GFile. "GFile" name should work.
-    // If not, we might need to resolve it properly.
-    // Assuming typeFromName works or we fallback to 0 (invalid) which might accept anything?
-    // Using 0 usually means G_TYPE_INVALID.
-    const fileType = typeFromName("GFile") || 0n;
+    const fileType = GFile.getType();
     this.#dropTarget = new DropTarget(
       fileType,
       DragAction.COPY,
@@ -444,7 +443,7 @@ class MainWindow extends AdwApplicationWindow {
     const dialog = new FileDialog();
     dialog.setTitle("Select a file to share");
 
-    const filters = new ListStore(typeFromName("GtkFileFilter") || 0n);
+    const filters = new ListStore(FileFilter.getType());
 
     const allFilesFilter = new FileFilter();
     allFilesFilter.setName("All Files");
@@ -524,8 +523,7 @@ class MainWindow extends AdwApplicationWindow {
     dialog.setVersion(meta.version);
     dialog.setDeveloperName("Bedis Nbiba");
     dialog.setDevelopers(["Bedis Nbiba <bedisnbiba@gmail.com>"]);
-    dialog.setLicenseType(7); // MIT_X11 = 7 usually? Need to check enum or use number.
-    // GTK_LICENSE_MIT_X11 is 7.
+    dialog.setLicenseType(License.MIT_X11);
     dialog.setWebsite("https://github.com/sigmaSd/Share");
     dialog.setIssueUrl(
       "https://github.com/sigmaSd/Share/issues",
@@ -615,7 +613,7 @@ class MainWindow extends AdwApplicationWindow {
         "text/plain;charset=utf-8",
         "image/png",
       ],
-      0, // PRIORITY_DEFAULT
+      Priority.DEFAULT,
       null,
       (source, result) => this.#onClipboardRead(source, result),
     );
@@ -703,7 +701,7 @@ class App extends Application {
   #initialPath: string | undefined;
 
   constructor(appId: string, url: string, initialPath?: string) {
-    super(appId, 0); // flags=0
+    super(appId, ApplicationFlags.NONE);
     this.#url = url;
     this.#initialPath = initialPath;
     this.onActivate(() => this.onActivateCallback());
@@ -757,7 +755,7 @@ Options:
           path,
         );
         unixSignalAdd(
-          2, // SIGINT
+          UnixSignal.SIGINT,
           () => {
             worker.terminate();
             try {

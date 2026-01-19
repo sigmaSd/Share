@@ -5,7 +5,7 @@
     "distro"
   ],
   "imports": {
-    "@sigmasd/gtk": "jsr:@sigmasd/gtk@^0.16.0",
+    "@sigmasd/gtk": "jsr:@sigmasd/gtk@^0.17.0",
     "@sigmasd/qrpng": "jsr:@sigmasd/qrpng@^0.1.3",
     "@std/cli": "jsr:@std/cli@^1.0.25",
     "@std/fs": "jsr:@std/fs@^1.0.21",
