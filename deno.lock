@@ -5,9 +5,8 @@
     "jsr:@david/path@0.2": "0.2.0",
     "jsr:@david/which@~0.4.1": "0.4.1",
     "jsr:@denosaurs/python@0.4.6": "0.4.6",
-    "jsr:@sigma/gtk-py@0.11.0": "0.11.0",
     "jsr:@sigma/gtk-py@0.7.0": "0.7.0",
-    "jsr:@sigma/python@0.4.10": "0.4.10",
+    "jsr:@sigmasd/gtk@0.16": "0.16.0",
     "jsr:@sigmasd/qrpng@0.1.3": "0.1.3",
     "jsr:@sigmasd/qrpng@~0.1.3": "0.1.3",
     "jsr:@std/bytes@^1.0.5": "1.0.6",
@@ -17,7 +16,7 @@
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
-    "jsr:@std/fs@1": "1.0.17",
+    "jsr:@std/fs@1": "1.0.21",
     "jsr:@std/fs@1.0.12": "1.0.12",
     "jsr:@std/fs@^1.0.21": "1.0.21",
     "jsr:@std/html@^1.0.4": "1.0.4",
@@ -29,7 +28,7 @@
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.4": "1.0.4",
     "jsr:@std/net@^1.0.6": "1.0.6",
-    "jsr:@std/path@1": "1.0.9",
+    "jsr:@std/path@1": "1.1.4",
     "jsr:@std/path@^1.0.9": "1.0.9",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/streams@^1.0.16": "1.0.16",
@@ -67,14 +66,8 @@
         "jsr:@denosaurs/python"
       ]
     },
-    "@sigma/gtk-py@0.11.0": {
-      "integrity": "3ca26cd3b6bcd775644b66e8c7c9a65b2a94c4170800d85c2f01a8fae5459cf7",
-      "dependencies": [
-        "jsr:@sigma/python"
-      ]
-    },
-    "@sigma/python@0.4.10": {
-      "integrity": "654eaf8c7a41f20387c6dff8911808076193899c06bf5b77400dee24501aa8f0"
+    "@sigmasd/gtk@0.16.0": {
+      "integrity": "2f0555131985c31c0d554adc8cc4763150620b77be23de7056868b743d1fd990"
     },
     "@sigmasd/qrpng@0.1.3": {
       "integrity": "73fac5dc94e23a3082925138549a32712fe167018087d3f2498c86e85d817471"
@@ -193,6 +186,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@sigmasd/gtk@0.16",
       "jsr:@sigmasd/qrpng@~0.1.3",
       "jsr:@std/cli@^1.0.25",
       "jsr:@std/fs@^1.0.21",

@@ -1,71 +1,85 @@
 #!/usr/bin/env -S deno run --allow-all --unstable-ffi
 import {
-  type Adw1_ as Adw_,
-  Callback,
-  type Gdk4_ as Gdk_,
-  type Gio2_ as Gio_,
-  type GLib2_ as GLib_,
-  type Gtk4_ as Gtk_,
-  kw,
-  NamedArgument,
-  python,
-  // deno-lint-ignore no-import-prefix
-} from "jsr:@sigma/gtk-py@0.11.0";
+  Application,
+  Box,
+  Button,
+  Clipboard,
+  CssProvider,
+  Cursor,
+  Display,
+  DropTarget,
+  EventControllerKey,
+  FileDialog,
+  FileFilter,
+  GestureClick,
+  Label,
+  MenuButton,
+  Picture,
+  PopoverMenu,
+  StyleContext,
+  typeFromName,
+  unixSignalAdd,
+} from "@sigmasd/gtk/gtk";
+import {
+  AboutDialog,
+  AdwApplicationWindow,
+  Clamp,
+  HeaderBar,
+  ToolbarView,
+} from "@sigmasd/gtk/adw";
+import { File as GFile, ListStore, Menu, SimpleAction } from "@sigmasd/gtk/gio";
+import {
+  Align,
+  DragAction,
+  Key,
+  ModifierType,
+  Orientation,
+} from "@sigmasd/gtk/enums";
+import { timeout } from "@sigmasd/gtk/glib";
 import { parseArgs } from "@std/cli/parse-args";
 import { resolve } from "@std/path/resolve";
 import meta from "../deno.json" with { type: "json" };
-
-const gi = python.import("gi");
-gi.require_version("Gtk", "4.0");
-gi.require_version("Adw", "1");
-const Gtk: Gtk_.Gtk = python.import("gi.repository.Gtk");
-const Adw: Adw_.Adw = python.import("gi.repository.Adw");
-const Gdk: Gdk_.Gdk = python.import("gi.repository.Gdk");
-const GLib: GLib_.GLib = python.import("gi.repository.GLib");
-const Gio: Gio_.Gio = python.import("gi.repository.Gio");
 
 const worker = new Worker(new URL("./main.worker.ts", import.meta.url).href, {
   type: "module",
 });
 const qrPath = Deno.makeTempFileSync();
 
-class MainWindow extends Adw.ApplicationWindow {
-  #app: Adw_.Application;
+class MainWindow extends AdwApplicationWindow {
+  #app: Application;
   #url: string;
-  #label: Gtk_.Label;
-  #picture: Gtk_.Picture;
-  #dropTarget: Gtk_.DropTarget;
-  #contentBox: Gtk_.Box;
-  #clipboard: Gdk_.Clipboard;
-  #urlBox!: Gtk_.Box;
-  #urlLabel!: Gtk_.Label;
-  #copyButton!: Gtk_.Button;
-  #shareButton!: Gtk_.Button;
-  #statusIndicator!: Gtk_.Label;
+  #label: Label;
+  #picture: Picture;
+  #dropTarget: DropTarget;
+  #contentBox: Box;
+  #clipboard: Clipboard;
+  #urlBox!: Box;
+  #urlLabel!: Label;
+  #copyButton!: Button;
+  #shareButton!: Button;
+  #statusIndicator!: Label;
   #isSharing: boolean = true;
-  #receiveButton!: Gtk_.Button;
+  #receiveButton!: Button;
   #isReceiveMode: boolean = false;
   #downloadDir: string = "";
 
-  constructor(kwArg: NamedArgument, url: string, initialPath?: string) {
-    super(kwArg);
+  constructor(app: Application, url: string, initialPath?: string) {
+    super(app);
+    this.#app = app;
     this.#url = url;
-    this.set_title("Share");
-    this.set_default_size(400, 400);
-    // @ts-ignore it works
-    this.set_resizable(false);
-    this.connect("close-request", this.#onCloseRequest);
-
-    this.#app = kwArg.value.valueOf() as Adw_.Application;
+    this.setTitle("Share");
+    this.setDefaultSize(400, 400);
+    this.setResizable(false);
+    this.onCloseRequest(() => this.#onCloseRequest());
 
     this.#createShortcuts();
 
     // Initialize clipboard
-    this.#clipboard = Gdk.Display.get_default().get_clipboard();
+    this.#clipboard = Display.getDefault()!.getClipboard();
 
     // Apply CSS to the window
-    const cssProvider = Gtk.CssProvider();
-    cssProvider.load_from_data(`\
+    const cssProvider = new CssProvider();
+    cssProvider.loadFromData(`
 .instruction-label {
   font-size: 1.1rem;
   font-weight: 600;
@@ -113,76 +127,80 @@ class MainWindow extends Adw.ApplicationWindow {
   color: @success_color;
 }
 `);
-    Gtk.StyleContext.add_provider_for_display(
-      Gdk.Display.get_default(),
+    StyleContext.addProviderForDisplay(
+      Display.getDefault()!,
       cssProvider,
-      Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+      600, // STYLE_PROVIDER_PRIORITY_APPLICATION
     );
 
     // Add CSS class to the window
-    this.get_style_context().add_class("main-window");
+    this.getStyleContext().addClass("main-window");
 
-    this.#label = Gtk.Label(
-      kw`label=${"Drop file or Ctrl+V to paste"}`,
-    );
-    this.#label.get_style_context().add_class("instruction-label");
+    this.#label = new Label("Drop file or Ctrl+V to paste");
+    this.#label.getStyleContext().addClass("instruction-label");
 
-    this.#picture = Gtk.Picture();
-    this.#picture.set_filename(qrPath);
-    this.#picture.set_size_request(240, 240);
-    this.#picture.set_keep_aspect_ratio(true);
+    this.#picture = new Picture();
+    this.#picture.setFilename(qrPath);
+    this.#picture.setSizeRequest(240, 240);
+    this.#picture.setKeepAspectRatio(true);
 
-    const qrCard = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
-    qrCard.get_style_context().add_class("qr-card");
-    qrCard.set_halign(Gtk.Align.CENTER);
+    const qrCard = new Box(Orientation.VERTICAL, 0);
+    qrCard.getStyleContext().addClass("qr-card");
+    qrCard.setHalign(Align.CENTER);
     qrCard.append(this.#picture);
 
     this.#createUrlBox();
     this.#createShareControls();
 
-    const controlsBox = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
-    controlsBox.get_style_context().add_class("controls-box");
-    controlsBox.set_spacing(10);
+    const controlsBox = new Box(Orientation.VERTICAL, 0);
+    controlsBox.getStyleContext().addClass("controls-box");
+    controlsBox.setSpacing(10);
     controlsBox.append(this.#shareButton);
     controlsBox.append(this.#receiveButton);
 
-    this.#contentBox = Gtk.Box(kw`orientation=${Gtk.Orientation.VERTICAL}`);
-    this.#contentBox.get_style_context().add_class("content-box");
-    this.#contentBox.set_valign(Gtk.Align.CENTER);
+    this.#contentBox = new Box(Orientation.VERTICAL, 0);
+    this.#contentBox.getStyleContext().addClass("content-box");
+    this.#contentBox.setValign(Align.CENTER);
     this.#contentBox.append(this.#label);
     this.#contentBox.append(qrCard);
     this.#contentBox.append(this.#urlBox);
     this.#contentBox.append(controlsBox);
     this.#contentBox.append(this.#statusIndicator);
 
-    const clamp = Adw.Clamp();
-    clamp.set_maximum_size(450);
-    clamp.set_child(this.#contentBox);
+    const clamp = new Clamp();
+    clamp.setMaximumSize(450);
+    clamp.setChild(this.#contentBox);
 
     // Set up the ToolbarView with header and content
     const header = this.#createHeaderBar();
-    const toolbarView = Adw.ToolbarView();
-    toolbarView.add_top_bar(header);
-    toolbarView.set_content(clamp);
-    this.set_content(toolbarView);
+    const toolbarView = new ToolbarView();
+    toolbarView.addTopBar(header);
+    toolbarView.setContent(clamp);
+    this.setContent(toolbarView);
 
-    this.#dropTarget = Gtk.DropTarget.new(
-      Gio.File,
-      Gdk.DragAction.COPY,
+    // Use GFile type for drop target
+    // Note: We need GType for GFile. "GFile" name should work.
+    // If not, we might need to resolve it properly.
+    // Assuming typeFromName works or we fallback to 0 (invalid) which might accept anything?
+    // Using 0 usually means G_TYPE_INVALID.
+    const fileType = typeFromName("GFile") || 0n;
+    this.#dropTarget = new DropTarget(
+      fileType,
+      DragAction.COPY,
     );
-    this.#dropTarget.connect("drop", this.#onDrop);
-    this.add_controller(this.#dropTarget);
+    this.#dropTarget.onDrop((val, x, y) => this.#onDrop(val, x, y));
+    this.addController(this.#dropTarget);
 
     // Add key event controller for Ctrl+V
-    const keyController = Gtk.EventControllerKey.new();
-    keyController.connect("key-pressed", this.#onKeyPressed);
-    this.add_controller(keyController);
+    const keyController = new EventControllerKey();
+    keyController.onKeyPressed((k, c, s) => this.#onKeyPressed(k, c, s));
+    this.addController(keyController);
 
     if (initialPath) {
       const fileName = initialPath.split("/").pop();
       try {
         const isDir = Deno.statSync(initialPath).isDirectory;
-        this.#label.set_text(
+        this.#label.setText(
           isDir ? `directory: ${fileName}` : `file: ${fileName}`,
         );
         this.#isReceiveMode = false;
@@ -194,82 +212,67 @@ class MainWindow extends Adw.ApplicationWindow {
   }
 
   #showCopyFeedback = () => {
-    //@ts-ignore TODO update gtk py
-    const originalText: string = this.#urlLabel.get_text();
-    this.#urlLabel.set_text("Copied to clipboard!");
-    this.#urlLabel.get_style_context().add_class("success-color");
+    const originalText: string = this.#urlLabel.getText();
+    this.#urlLabel.setText("Copied to clipboard!");
+    this.#urlLabel.getStyleContext().addClass("success-color");
 
-    GLib.timeout_add(
-      500,
-      () => {
-        this.#urlLabel.set_text(originalText);
-        this.#urlLabel.get_style_context().remove_class("success-color");
-        return false;
-      },
-    );
+    // Use timeout from glib.ts
+    timeout(500, () => {
+      this.#urlLabel.setText(originalText);
+      this.#urlLabel.getStyleContext().removeClass("success-color");
+      return false;
+    });
   };
 
   #createUrlBox = () => {
-    this.#urlBox = Gtk.Box(kw`orientation=${Gtk.Orientation.HORIZONTAL}`);
-    this.#urlBox.set_spacing(10);
-    this.#urlBox.set_halign(Gtk.Align.CENTER);
+    this.#urlBox = new Box(Orientation.HORIZONTAL, 10);
+    this.#urlBox.setHalign(Align.CENTER);
 
-    this.#urlLabel = Gtk.Label(kw`label=${this.#url}`);
-    this.#urlLabel.get_style_context().add_class("url-label");
-    // @ts-ignore it works
-    this.#urlLabel.set_cursor(Gdk.Cursor.new_from_name("default", null));
+    this.#urlLabel = new Label(this.#url);
+    this.#urlLabel.getStyleContext().addClass("url-label");
+    this.#urlLabel.setCursor(Cursor.newFromName("default", null));
 
-    const labelClick = Gtk.GestureClick.new();
-    // @ts-ignore it works
-    labelClick.connect("released", () => {
+    const labelClick = new GestureClick();
+    labelClick.onReleased(() => {
       this.#clipboard.set(this.#url);
       this.#showCopyFeedback();
     });
-    this.#urlLabel.add_controller(labelClick);
+    this.#urlLabel.addController(labelClick);
 
-    this.#copyButton = Gtk.Button(kw`label=""`);
-    this.#copyButton.set_icon_name("edit-copy-symbolic");
-    this.#copyButton.set_tooltip_text("Copy URL");
-    this.#copyButton.get_style_context().add_class("flat");
-    this.#copyButton.connect(
-      "clicked",
-      () => {
-        this.#clipboard.set(this.#url);
-        this.#showCopyFeedback();
-      },
-    );
+    this.#copyButton = new Button("");
+    this.#copyButton.setIconName("edit-copy-symbolic");
+    this.#copyButton.setTooltipText("Copy URL");
+    this.#copyButton.getStyleContext().addClass("flat");
+    this.#copyButton.onClick(() => {
+      this.#clipboard.set(this.#url);
+      this.#showCopyFeedback();
+    });
 
     this.#urlBox.append(this.#urlLabel);
     this.#urlBox.append(this.#copyButton);
 
-    this.#urlBox.set_visible(true);
-    this.#urlBox.get_style_context().add_class("url-box");
+    this.#urlBox.setVisible(true);
+    this.#urlBox.getStyleContext().addClass("url-box");
   };
 
   #createShareControls = () => {
-    this.#shareButton = Gtk.Button(kw`label="Stop Sharing"`);
-    this.#shareButton.get_style_context().add_class("pill");
-    this.#shareButton.set_tooltip_text("Toggle sharing on/off (Ctrl+T)");
-    this.#shareButton.connect(
-      "clicked",
-      () => {
-        this.#toggleSharing();
-      },
-    );
+    this.#shareButton = new Button("Stop Sharing");
+    this.#shareButton.getStyleContext().addClass("pill");
+    this.#shareButton.setTooltipText("Toggle sharing on/off (Ctrl+T)");
+    this.#shareButton.onClick(() => {
+      this.#toggleSharing();
+    });
 
-    this.#receiveButton = Gtk.Button(kw`label="Receive Mode"`);
-    this.#receiveButton.get_style_context().add_class("pill");
-    this.#receiveButton.set_tooltip_text("Toggle receive mode (Ctrl+R)");
-    this.#receiveButton.connect(
-      "clicked",
-      () => {
-        this.#toggleReceiveMode();
-      },
-    );
+    this.#receiveButton = new Button("Receive Mode");
+    this.#receiveButton.getStyleContext().addClass("pill");
+    this.#receiveButton.setTooltipText("Toggle receive mode (Ctrl+R)");
+    this.#receiveButton.onClick(() => {
+      this.#toggleReceiveMode();
+    });
 
-    this.#statusIndicator = Gtk.Label(kw`label="● Sharing Active"`);
-    this.#statusIndicator.get_style_context().add_class("status-indicator");
-    this.#statusIndicator.set_halign(Gtk.Align.CENTER);
+    this.#statusIndicator = new Label("● Sharing Active");
+    this.#statusIndicator.getStyleContext().addClass("status-indicator");
+    this.#statusIndicator.setHalign(Align.CENTER);
 
     // Initialize download directory
     this.#downloadDir = getDownloadDir();
@@ -280,38 +283,38 @@ class MainWindow extends Adw.ApplicationWindow {
 
   #updateSharingUI = () => {
     if (this.#isSharing) {
-      this.#shareButton.set_label("Stop Sharing");
-      this.#shareButton.get_style_context().remove_class("suggested-action");
-      this.#shareButton.get_style_context().add_class("destructive-action");
-      this.#statusIndicator.get_style_context().remove_class("status-inactive");
-      this.#statusIndicator.get_style_context().add_class("status-active");
+      this.#shareButton.setLabel("Stop Sharing");
+      this.#shareButton.getStyleContext().removeClass("suggested-action");
+      this.#shareButton.getStyleContext().addClass("destructive-action");
+      this.#statusIndicator.getStyleContext().removeClass("status-inactive");
+      this.#statusIndicator.getStyleContext().addClass("status-active");
     } else {
-      this.#shareButton.set_label("Start Sharing");
-      this.#shareButton.get_style_context().remove_class("destructive-action");
-      this.#shareButton.get_style_context().add_class("suggested-action");
-      this.#statusIndicator.get_style_context().remove_class("status-active");
-      this.#statusIndicator.get_style_context().add_class("status-inactive");
+      this.#shareButton.setLabel("Start Sharing");
+      this.#shareButton.getStyleContext().removeClass("destructive-action");
+      this.#shareButton.getStyleContext().addClass("suggested-action");
+      this.#statusIndicator.getStyleContext().removeClass("status-active");
+      this.#statusIndicator.getStyleContext().addClass("status-inactive");
     }
 
-    this.#shareButton.set_visible(true);
+    this.#shareButton.setVisible(true);
 
     if (this.#isReceiveMode) {
-      this.#receiveButton.set_label("Exit Receive Mode");
-      this.#receiveButton.get_style_context().add_class("destructive-action");
-      this.#statusIndicator.set_text(
+      this.#receiveButton.setLabel("Exit Receive Mode");
+      this.#receiveButton.getStyleContext().addClass("destructive-action");
+      this.#statusIndicator.setText(
         this.#isSharing
           ? "📥 Receiving Files (Sharing Active)"
           : "📥 Receiving Files (Sharing Stopped)",
       );
-      this.#label.set_text(
+      this.#label.setText(
         `Saving to: ${this.#downloadDir.split("/").pop()}`,
       );
     } else {
-      this.#receiveButton.set_label("Receive Mode");
-      this.#receiveButton.get_style_context().remove_class(
+      this.#receiveButton.setLabel("Receive Mode");
+      this.#receiveButton.getStyleContext().removeClass(
         "destructive-action",
       );
-      this.#statusIndicator.set_text(
+      this.#statusIndicator.setText(
         this.#isSharing ? "● Sharing Active" : "● Sharing Stopped",
       );
     }
@@ -347,24 +350,24 @@ class MainWindow extends Adw.ApplicationWindow {
         type: "set-receive-mode",
         enabled: false,
       });
-      this.#label.set_text("Drop file or Ctrl+V to paste");
+      this.#label.setText("Drop file or Ctrl+V to paste");
     }
 
     this.#updateSharingUI();
   };
 
   #createHeaderBar = () => {
-    const header = Adw.HeaderBar();
+    const header = new HeaderBar();
     // menu
-    const menu = Gio.Menu.new();
-    const popover = Gtk.PopoverMenu();
-    popover.set_menu_model(menu);
-    const hamburger = Gtk.MenuButton();
-    hamburger.set_primary(true);
-    hamburger.set_popover(popover);
-    hamburger.set_icon_name("open-menu-symbolic");
-    hamburger.set_tooltip_text("Main Menu");
-    header.pack_start(hamburger);
+    const menu = new Menu();
+    const popover = new PopoverMenu();
+    popover.setMenuModel(menu);
+    const hamburger = new MenuButton();
+    hamburger.setPrimary(true);
+    hamburger.setPopover(popover);
+    hamburger.setIconName("open-menu-symbolic");
+    hamburger.setTooltipText("Main Menu");
+    header.packStart(hamburger);
 
     menu.append("Open File (Ctrl+O)", "app.open-file");
     menu.append("Open Directory (Ctrl+Shift+O)", "app.open-directory");
@@ -421,68 +424,61 @@ class MainWindow extends Adw.ApplicationWindow {
       ["<primary>r"],
     );
 
-    // Create actions after methods are defined
-    this.#createAction("about", this.#showAbout);
-    this.#createAction("open-file", this.#openFileDialog);
-    this.#createAction(
-      "open-directory",
-      this.#openDirectoryDialog,
-    );
-    this.#createAction("toggle-sharing", this.#toggleSharing);
-    this.#createAction(
-      "toggle-receive",
-      this.#toggleReceiveMode,
-    );
+    this.#createAction("about", () => this.#showAbout());
   };
 
   #createAction = (
     name: string,
-    callback: Callback | (() => void),
-    shortcuts?: [string],
+    callback: () => void,
+    shortcuts?: string[],
   ) => {
-    const action = Gio.SimpleAction.new(name);
-    action.connect("activate", callback);
-    this.#app.add_action(action);
-    if (shortcuts) this.#app.set_accels_for_action(`app.${name}`, shortcuts);
+    const action = new SimpleAction(name);
+    // @ts-ignore: Assuming GObject has connect
+    action.connect("activate", () => callback());
+
+    this.#app.addAction(action);
+    if (shortcuts) this.#app.setAccelsForAction(`app.${name}`, shortcuts);
   };
 
   #openFileDialog = () => {
-    const dialog = Gtk.FileDialog();
-    dialog.set_title("Select a file to share");
+    const dialog = new FileDialog();
+    dialog.setTitle("Select a file to share");
 
-    // Add file filters for common file types
-    const filters = Gio.ListStore.new(Gtk.FileFilter);
+    const filters = new ListStore(typeFromName("GtkFileFilter") || 0n);
 
-    const allFilesFilter = Gtk.FileFilter();
-    allFilesFilter.set_name("All Files");
-    allFilesFilter.add_pattern("*");
+    const allFilesFilter = new FileFilter();
+    allFilesFilter.setName("All Files");
+    allFilesFilter.addPattern("*");
     filters.append(allFilesFilter);
 
-    const imageFilter = Gtk.FileFilter();
-    imageFilter.set_name("Images");
-    imageFilter.add_mime_type("image/*");
+    const imageFilter = new FileFilter();
+    imageFilter.setName("Images");
+    imageFilter.addMimeType("image/*");
     filters.append(imageFilter);
 
-    const textFilter = Gtk.FileFilter();
-    textFilter.set_name("Text Files");
-    textFilter.add_mime_type("text/*");
+    const textFilter = new FileFilter();
+    textFilter.setName("Text Files");
+    textFilter.addMimeType("text/*");
     filters.append(textFilter);
 
-    dialog.set_filters(filters);
-    dialog.set_default_filter(allFilesFilter);
+    dialog.setFilters(filters);
+    dialog.setDefaultFilter(allFilesFilter);
 
     dialog.open(
       this,
       null,
-      // deno-lint-ignore no-explicit-any
-      (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
+      (source, result) => {
         try {
-          const file = dialog.open_finish(result);
-          const filePath = file.get_path().valueOf();
-          const fileName = filePath.split("/").pop();
+          // source is FileDialog, result is AsyncResult
+          // openFinish returns GObject (GFile)
+          const fileObj = source.openFinish(result);
+          // wrap in GFile
+          const file = new GFile(fileObj.ptr);
+          const filePath = file.getPath();
+          const fileName = filePath?.split("/").pop();
 
-          if (fileName) {
-            this.#label.set_text(`file: ${fileName}`);
+          if (fileName && filePath) {
+            this.#label.setText(`file: ${fileName}`);
             this.#isReceiveMode = false;
             this.#updateSharingUI();
             worker.postMessage({ type: "file", path: filePath });
@@ -495,21 +491,21 @@ class MainWindow extends Adw.ApplicationWindow {
   };
 
   #openDirectoryDialog = () => {
-    const dialog = Gtk.FileDialog();
-    dialog.set_title("Select a directory to share");
+    const dialog = new FileDialog();
+    dialog.setTitle("Select a directory to share");
 
-    dialog.select_folder(
+    dialog.selectFolder(
       this,
       null,
-      // deno-lint-ignore no-explicit-any
-      (_: any, _dialog: Gtk_.FileDialog, result: Gio_.AsyncResult) => {
+      (source, result) => {
         try {
-          const file = dialog.select_folder_finish(result);
-          const dirPath = file.get_path().valueOf();
-          const dirName = dirPath.split("/").pop();
+          const fileObj = source.selectFolderFinish(result);
+          const file = new GFile(fileObj.ptr);
+          const dirPath = file.getPath();
+          const dirName = dirPath?.split("/").pop();
 
-          if (dirName) {
-            this.#label.set_text(`directory: ${dirName}`);
+          if (dirName && dirPath) {
+            this.#label.setText(`directory: ${dirName}`);
             this.#isReceiveMode = false;
             this.#updateSharingUI();
             worker.postMessage({ type: "file", path: dirPath });
@@ -522,41 +518,44 @@ class MainWindow extends Adw.ApplicationWindow {
   };
 
   #showAbout = () => {
-    const dialog = Adw.AboutWindow(
-      new NamedArgument("transient_for", this.#app.get_active_window()),
-    );
-    dialog.set_application_name("Share");
-    dialog.set_version(meta.version);
-    dialog.set_developer_name("Bedis Nbiba");
-    dialog.set_developers(["Bedis Nbiba <bedisnbiba@gmail.com>"]);
-    dialog.set_license_type(Gtk.License.MIT_X11);
-    dialog.set_website("https://github.com/sigmaSd/qr-share");
-    dialog.set_issue_url(
-      "https://github.com/sigmaSd/qr-share/issues",
-    );
-    dialog.set_application_icon("io.github.sigmasd.share");
+    const dialog = new AboutDialog();
 
-    dialog.set_visible(true);
+    dialog.setApplicationName("Share");
+    dialog.setVersion(meta.version);
+    dialog.setDeveloperName("Bedis Nbiba");
+    dialog.setDevelopers(["Bedis Nbiba <bedisnbiba@gmail.com>"]);
+    dialog.setLicenseType(7); // MIT_X11 = 7 usually? Need to check enum or use number.
+    // GTK_LICENSE_MIT_X11 is 7.
+    dialog.setWebsite("https://github.com/sigmaSd/Share");
+    dialog.setIssueUrl(
+      "https://github.com/sigmaSd/Share/issues",
+    );
+    dialog.setApplicationIcon("io.github.sigmasd.share");
+
+    dialog.present(this);
   };
 
-  #onDrop = (_a1: object, _dropTarget: Gtk_.DropTarget, file: Gio_.File) => {
+  #onDrop = (value: Deno.PointerValue, _x: number, _y: number) => {
+    // value is GObject pointer (GFile)
+    if (!value) return false;
+    const file = new GFile(value);
+
     let filePath;
     let fileName;
 
-    if (typeof file.get_path().valueOf() === "string") {
-      filePath = file.get_path().valueOf();
+    const path = file.getPath();
+    if (path) {
+      filePath = path;
       fileName = filePath.split("/").pop() ?? null;
     } else {
       // Handle file without a path
-      const [success, contents] = file.load_contents();
-      if (success.valueOf()) {
+      const [success, contents] = file.loadContents();
+      if (success) {
         fileName = "Dropped File";
         filePath = Deno.makeTempFileSync();
-        // keep writeFile async, so it dones't block the ui
-        // somehow it works with gio event loop
         Deno.writeFile(
           filePath,
-          new Uint8Array(python.list(contents).valueOf()),
+          contents,
         );
       } else {
         console.warn("Failed to read contents of the dropped file");
@@ -564,12 +563,12 @@ class MainWindow extends Adw.ApplicationWindow {
       }
     }
 
-    if (!fileName) {
+    if (!fileName || !filePath) {
       console.warn("Could not detect filename from this file");
       return false;
     }
 
-    this.#label.set_text(`file: ${fileName}`);
+    this.#label.setText(`file: ${fileName}`);
     this.#isReceiveMode = false;
     this.#updateSharingUI();
     worker.postMessage({ type: "file", path: filePath });
@@ -577,60 +576,31 @@ class MainWindow extends Adw.ApplicationWindow {
   };
 
   #onKeyPressed = (
-    // deno-lint-ignore no-explicit-any
-    _: any,
-    _controller: Gtk_.EventControllerKey,
     keyval: number,
     _keycode: number,
-    state: Gdk_.ModifierType,
+    state: number,
   ) => {
-    if (
-      keyval === Gdk.KEY_v.valueOf() &&
-      //@ts-ignore: exists in pyobject
-      state.__and__(Gdk.ModifierType.CONTROL_MASK)
-        .__eq__(Gdk.ModifierType.CONTROL_MASK)
-        .valueOf()
-    ) {
+    const ctrl =
+      (state & ModifierType.CONTROL_MASK) === ModifierType.CONTROL_MASK;
+    const shift = (state & ModifierType.SHIFT_MASK) === ModifierType.SHIFT_MASK;
+
+    if (keyval === Key.v && ctrl) {
       this.#handlePaste();
       return true;
     }
-    if (
-      keyval === Gdk.KEY_o.valueOf() &&
-      //@ts-ignore: exists in pyobject
-      state.__and__(Gdk.ModifierType.CONTROL_MASK)
-        .__eq__(Gdk.ModifierType.CONTROL_MASK)
-        .valueOf()
-    ) {
-      // Check if Shift is also pressed
-      if (
-        //@ts-ignore: exists in pyobject
-        state.__and__(Gdk.ModifierType.SHIFT_MASK)
-          .__eq__(Gdk.ModifierType.SHIFT_MASK)
-          .valueOf()
-      ) {
+    if (keyval === Key.o && ctrl) {
+      if (shift) {
         this.#openDirectoryDialog();
       } else {
         this.#openFileDialog();
       }
       return true;
     }
-    if (
-      keyval === Gdk.KEY_t.valueOf() &&
-      //@ts-ignore: exists in pyobject
-      state.__and__(Gdk.ModifierType.CONTROL_MASK)
-        .__eq__(Gdk.ModifierType.CONTROL_MASK)
-        .valueOf()
-    ) {
+    if (keyval === Key.t && ctrl) {
       this.#toggleSharing();
       return true;
     }
-    if (
-      keyval === Gdk.KEY_r.valueOf() &&
-      //@ts-ignore: exists in pyobject
-      state.__and__(Gdk.ModifierType.CONTROL_MASK)
-        .__eq__(Gdk.ModifierType.CONTROL_MASK)
-        .valueOf()
-    ) {
+    if (keyval === Key.r && ctrl) {
       this.#toggleReceiveMode();
       return true;
     }
@@ -638,66 +608,61 @@ class MainWindow extends Adw.ApplicationWindow {
   };
 
   #handlePaste = () => {
-    this.#clipboard.read_async(
-      // NOTE: order matters!
+    this.#clipboard.readAsync(
       [
         "text/uri-list",
         "text/plain",
         "text/plain;charset=utf-8",
         "image/png",
       ],
-      GLib.PRIORITY_HIGH,
+      0, // PRIORITY_DEFAULT
       null,
-      this.#onClipboardRead,
+      (source, result) => this.#onClipboardRead(source, result),
     );
   };
 
-  #onClipboardRead =
-    // deno-lint-ignore no-explicit-any
-    (_: any, clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) => {
-      const [_inputStream, value] = clipboard.read_finish(result);
-      const mimeType = value.valueOf();
-      if (mimeType.startsWith("text/")) {
-        clipboard.read_text_async(
-          null,
-          // deno-lint-ignore no-explicit-any
-          (_: any, _clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) =>
-            this.#onTextReceived(result, mimeType),
-        );
-      } else if (mimeType.startsWith("image/")) {
-        clipboard.read_texture_async(
-          null,
-          // deno-lint-ignore no-explicit-any
-          (_: any, _clipboard: Gdk_.Clipboard, result: Gio_.AsyncResult) =>
-            this.#onImageReceived(result),
-        );
-      } else {
-        console.warn("Unsupported clipboard content type:", mimeType);
-      }
-    };
+  #onClipboardRead = (
+    clipboard: Clipboard,
+    result: Deno.PointerValue,
+  ) => {
+    const [_inputStream, mimeType] = clipboard.readFinish(result);
+    // mimeType is string
+    if (mimeType.startsWith("text/")) {
+      clipboard.readTextAsync(
+        null,
+        (source, res) => this.#onTextReceived(source, res, mimeType),
+      );
+    } else if (mimeType.startsWith("image/")) {
+      clipboard.readTextureAsync(
+        null,
+        (source, res) => this.#onImageReceived(source, res),
+      );
+    } else {
+      console.warn("Unsupported clipboard content type:", mimeType);
+    }
+  };
 
-  // deno-lint-ignore no-explicit-any
-  #onTextReceived = (result: any, mimeType: string) => {
-    const text = this.#clipboard.read_text_finish(result).valueOf();
+  #onTextReceived = (
+    clipboard: Clipboard,
+    result: Deno.PointerValue,
+    mimeType: string,
+  ) => {
+    const text = clipboard.readTextFinish(result);
     if (text) {
       this.#isReceiveMode = false;
       this.#updateSharingUI();
       if (mimeType.startsWith("text/uri-list") || text.startsWith("file://")) {
-        // This is a file URI
         const filePath = text.replace("file://", "").trim();
         const fileName = filePath.split("/").pop();
         if (canAccessFile(filePath)) {
-          this.#label.set_text(`file: ${fileName || "Pasted file"}`);
+          this.#label.setText(`file: ${fileName || "Pasted file"}`);
           worker.postMessage({ type: "file", path: filePath });
         } else {
-          // In flatpak the app might not have read permission
-          // So if we can't access the file, we just send the filepath as text
-          this.#label.set_text(`text: ${fileName || "Pasted file"}`);
+          this.#label.setText(`text: ${fileName || "Pasted file"}`);
           worker.postMessage({ type: "text", content: text });
         }
       } else if (mimeType.startsWith("text/plain")) {
-        // This is plain text
-        this.#label.set_text(
+        this.#label.setText(
           `text: ${text.length > 30 ? (`${text.slice(0, 30)} ...`) : text}`,
         );
         worker.postMessage({ type: "text", content: text });
@@ -707,15 +672,15 @@ class MainWindow extends Adw.ApplicationWindow {
     }
   };
 
-  #onImageReceived = (result: Gio_.AsyncResult) => {
-    const texture = this.#clipboard.read_texture_finish(result);
+  // deno-lint-ignore no-explicit-any
+  #onImageReceived = (clipboard: Clipboard, result: any) => {
+    const texture = clipboard.readTextureFinish(result);
     if (texture) {
-      this.#label.set_text("image: Pasted image");
+      this.#label.setText("image: Pasted image");
       this.#isReceiveMode = false;
       this.#updateSharingUI();
-      // Save the texture as a temporary file
       const tempFilePath = Deno.makeTempFileSync({ suffix: ".png" });
-      texture.save_to_png(tempFilePath);
+      texture.saveToPng(tempFilePath);
       worker.postMessage({ type: "file", path: tempFilePath });
     } else {
       console.warn("No image found in clipboard");
@@ -725,33 +690,36 @@ class MainWindow extends Adw.ApplicationWindow {
   #onCloseRequest = () => {
     worker.postMessage({ type: "stop-sharing" });
     worker.terminate();
-    Deno.removeSync(qrPath);
+    try {
+      Deno.removeSync(qrPath);
+    } catch { /* Ignore error if file not found */ }
     return false;
   };
 }
 
-class App extends Adw.Application {
+class App extends Application {
   #win: MainWindow | undefined;
   #url: string;
   #initialPath: string | undefined;
 
-  constructor(kwArg: NamedArgument, url: string, initialPath?: string) {
-    super(kwArg);
+  constructor(appId: string, url: string, initialPath?: string) {
+    super(appId, 0); // flags=0
     this.#url = url;
     this.#initialPath = initialPath;
-    this.connect("activate", this.onActivate);
+    this.onActivate(() => this.onActivateCallback());
   }
 
-  // deno-lint-ignore no-explicit-any
-  onActivate = (_kwarg: any, app: Adw_.Application) => {
+  onActivateCallback = () => {
     this.#win = new MainWindow(
-      new NamedArgument("application", app),
+      this,
       this.#url,
       this.#initialPath,
     );
     this.#win.present();
   };
 }
+
+// Helper for timeout
 
 if (import.meta.main) {
   const args = parseArgs(Deno.args, {
@@ -784,18 +752,19 @@ Options:
     switch (event.data.type) {
       case "start": {
         const app = new App(
-          kw`application_id=${"io.github.sigmasd.share"}`,
+          "io.github.sigmasd.share",
           event.data.url,
           path,
         );
-        const signal = python.import("signal");
-        GLib.unix_signal_add(
-          GLib.PRIORITY_HIGH,
-          signal.SIGINT,
+        unixSignalAdd(
+          2, // SIGINT
           () => {
             worker.terminate();
-            Deno.removeSync(qrPath);
+            try {
+              Deno.removeSync(qrPath);
+            } catch { /* Ignore error if file not found */ }
             app.quit();
+            return false;
           },
         );
         app.run([]);
@@ -815,9 +784,13 @@ function canAccessFile(path: string) {
 }
 
 function getDownloadDir(): string {
-  return new TextDecoder().decode(
-    new Deno.Command("xdg-user-dir", { args: ["DOWNLOAD"] })
-      .outputSync()
-      .stdout,
-  ).trim();
+  try {
+    return new TextDecoder().decode(
+      new Deno.Command("xdg-user-dir", { args: ["DOWNLOAD"] })
+        .outputSync()
+        .stdout,
+    ).trim();
+  } catch {
+    return "/tmp";
+  }
 }

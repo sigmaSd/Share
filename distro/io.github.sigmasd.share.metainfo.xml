@@ -35,12 +35,12 @@
   <screenshots>
     <screenshot type="default" style="light">
       <caption>Share application interface</caption>
-      <image>https://raw.githubusercontent.com/sigmaSd/qr-share/master/distro/demo-init.png</image>
+      <image>https://raw.githubusercontent.com/sigmaSd/Share/master/distro/demo-init.png</image>
     </screenshot>
   </screenshots>
 
-  <url type="homepage">https://github.com/sigmaSd/qr-share</url>
-  <url type="bugtracker">https://github.com/sigmaSd/qr-share/issues</url>
+  <url type="homepage">https://github.com/sigmaSd/Share</url>
+  <url type="bugtracker">https://github.com/sigmaSd/Share/issues</url>
 
   <content_rating type="oars-1.1" />
 
