@@ -201,7 +201,10 @@
     <div class="container">
       <div class="header">
         <h1>📁 File & Folder Upload</h1>
-        <p>Drag and drop files or folders here or click to select</p>
+        <p>
+          Drag and drop files or folders, click to select, or paste from
+          clipboard
+        </p>
       </div>
 
       <div class="upload-area" id="uploadArea">
@@ -269,6 +272,34 @@
       const errorMessage = document.getElementById("errorMessage");
 
       let selectedFiles = [];
+
+      // Paste from clipboard
+      document.addEventListener("paste", async (e) => {
+        const items = Array.from(e.clipboardData.items);
+        const files = [];
+
+        for (const item of items) {
+          if (item.kind === "file") {
+            const file = item.getAsFile();
+            if (file) files.push(file);
+          } else if (item.kind === "string" && item.type === "text/plain") {
+            const text = await new Promise((resolve) =>
+              item.getAsString(resolve)
+            );
+            if (text && text.trim()) {
+              const blob = new Blob([text], { type: "text/plain" });
+              const name = "Pasted text.txt";
+              const file = new File([blob], name, { type: "text/plain" });
+              files.push(file);
+            }
+          }
+        }
+
+        if (files.length > 0) {
+          e.preventDefault();
+          handleFiles(files);
+        }
+      });
 
       // Drag and drop handlers
       uploadArea.addEventListener("dragover", (e) => {

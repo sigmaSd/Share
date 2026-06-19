@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 import { serveDir, serveFile } from "@std/http/file-server";
 import { qrPng } from "@sigmasd/qrpng";
 import { basename } from "@std/path/basename";
@@ -9,6 +10,11 @@ import errorPage from "./ui/error.html" with { type: "text" };
 import uploadPage from "./ui/upload.html" with { type: "text" };
 import stopPage from "./ui/stop.html" with { type: "text" };
 import assert from "node:assert";
+
+let verbose: boolean = false;
+function log(...args: unknown[]) {
+  if (verbose) console.log(...args);
+}
 
 function getLocalAddr() {
   return Deno.networkInterfaces().filter((int) =>
@@ -30,7 +36,7 @@ if (import.meta.main) {
       port,
       onListen: async (addr) => {
         const serverAddr = `http://${getLocalAddr()}:${addr.port}`;
-        console.log("[worker] HTTP server running. Access it at:", serverAddr);
+        log("[worker] HTTP server running. Access it at:", serverAddr);
         await Deno.writeFile(
           qrPath,
           qrPng(new TextEncoder().encode(serverAddr)),
@@ -89,7 +95,8 @@ if (import.meta.main) {
 
               const arrayBuffer = await file.arrayBuffer();
               await Deno.writeFile(filePath, new Uint8Array(arrayBuffer));
-              console.log(`[worker] File saved: ${filePath}`);
+              log(`[worker] File saved: ${filePath}`);
+              self.postMessage({ type: "file-received", path: filePath });
             }
           }
 
@@ -121,12 +128,12 @@ if (import.meta.main) {
       }
 
       if (textContent) {
-        console.log("[worker] serving text content");
+        log("[worker] serving text content");
         return new Response(textContent, { headers });
       }
 
       if (filePath) {
-        console.log("[worker] serving path:", filePath);
+        log("[worker] serving path:", filePath);
         try {
           const meta = await Deno.stat(filePath);
           let response: Response;
@@ -184,7 +191,7 @@ if (import.meta.main) {
 
   //@ts-ignore worker
   self.onmessage = (event) => {
-    console.log("[worker] received msg:", event.data);
+    log("[worker] received msg:", event.data);
     switch (event.data.type) {
       case "file":
         filePath = event.data.path;
@@ -203,18 +210,19 @@ if (import.meta.main) {
           filePath = event.data.path;
           isReceiveMode = false;
         }
+        if (event.data.verbose) verbose = event.data.verbose;
         startServer();
         break;
       case "start-sharing":
-        console.log("[worker] Starting sharing");
+        log("[worker] Starting sharing");
         isSharing = true;
         break;
       case "stop-sharing":
-        console.log("[worker] Stopping sharing");
+        log("[worker] Stopping sharing");
         isSharing = false;
         break;
       case "set-receive-mode":
-        console.log("[worker] Setting receive mode:", event.data.enabled);
+        log("[worker] Setting receive mode:", event.data.enabled);
         isReceiveMode = event.data.enabled;
         if (isReceiveMode) {
           filePath = null;
@@ -222,7 +230,7 @@ if (import.meta.main) {
         }
         break;
       case "set-download-dir":
-        console.log("[worker] Setting download directory:", event.data.path);
+        log("[worker] Setting download directory:", event.data.path);
         downloadDir = event.data.path;
         break;
     }
