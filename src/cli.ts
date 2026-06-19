@@ -1,4 +1,4 @@
-import qrCode from "qrcode";
+import { qrcode } from "@libs/qrcode";
 import meta from "../deno.json" with { type: "json" };
 
 export interface CliOptions {
@@ -162,6 +162,7 @@ export async function runCli(options: CliOptions) {
           const name = path.split("/").pop();
           notifications.push(`✓ Received: ${name}`);
           if (notifications.length > 5) notifications.shift();
+          if (typeof printScreen === "function") printScreen();
           break;
         }
       }
@@ -170,12 +171,31 @@ export async function runCli(options: CliOptions) {
 
   url = await startPromise;
 
-  let qrString: string;
-  try {
-    qrString = await qrCode.toString(url, { type: "terminal", small: true });
-  } catch {
-    qrString = "";
+  function renderQr(url: string): string {
+    try {
+      const matrix = qrcode(url, { output: "array", ecl: "MEDIUM" });
+      const size = matrix.length;
+      const lines: string[] = [];
+      for (let y = 0; y < size; y += 2) {
+        let line = "\x1b[47m\x1b[30m";
+        for (let x = 0; x < size; x++) {
+          const top = matrix[y][x];
+          const bottom = y + 1 < size ? matrix[y + 1][x] : false;
+          if (top && bottom) line += "\u2588";
+          else if (top && !bottom) line += "\u2580";
+          else if (!top && bottom) line += "\u2584";
+          else line += " ";
+        }
+        line += "\x1b[0m";
+        lines.push(line);
+      }
+      return lines.join("\n");
+    } catch {
+      return "";
+    }
   }
+
+  const qrString = renderQr(url);
 
   let termWidth = 60;
   try {

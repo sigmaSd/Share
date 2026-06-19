@@ -195,16 +195,36 @@
         background: #6c757d;
         cursor: not-allowed;
       }
+      .text-input-area {
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+      .text-input-area textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 0.8rem;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        resize: vertical;
+        margin-bottom: 0.5rem;
+        box-sizing: border-box;
+      }
+      .text-input-area textarea:focus {
+        border-color: #667eea;
+        outline: none;
+      }
+      .text-input-area .select-button {
+        margin: 3px;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="header">
         <h1>📁 File & Folder Upload</h1>
-        <p>
-          Drag and drop files or folders, click to select, or paste from
-          clipboard
-        </p>
+        <p>Drag and drop files or folders, or click to select</p>
       </div>
 
       <div class="upload-area" id="uploadArea">
@@ -225,7 +245,25 @@
           >
             📁 Select Folder
           </button>
+          <button class="select-button" onclick="showTextInput()">
+            ✏️ Write Text
+          </button>
         </div>
+      </div>
+
+      <div class="text-input-area" id="textInputArea" style="display: none">
+        <textarea
+          id="textInput"
+          placeholder="Type or paste text here..."
+        ></textarea>
+        <button class="select-button" onclick="addText()">Add Text</button>
+        <button
+          class="select-button"
+          onclick="hideTextInput()"
+          style="background: #888"
+        >
+          Cancel
+        </button>
       </div>
 
       <input type="file" id="fileInput" class="file-input" multiple>
@@ -273,33 +311,83 @@
 
       let selectedFiles = [];
 
-      // Paste from clipboard
+      // Paste from clipboard (global shortcut)
       document.addEventListener("paste", async (e) => {
-        const items = Array.from(e.clipboardData.items);
-        const files = [];
-
-        for (const item of items) {
-          if (item.kind === "file") {
-            const file = item.getAsFile();
-            if (file) files.push(file);
-          } else if (item.kind === "string" && item.type === "text/plain") {
-            const text = await new Promise((resolve) =>
-              item.getAsString(resolve)
-            );
-            if (text && text.trim()) {
-              const blob = new Blob([text], { type: "text/plain" });
-              const name = "Pasted text.txt";
-              const file = new File([blob], name, { type: "text/plain" });
-              files.push(file);
-            }
-          }
-        }
-
+        const files = await clipboardItemsToFiles(e.clipboardData.items);
         if (files.length > 0) {
           e.preventDefault();
           handleFiles(files);
         }
       });
+
+      // Catch paste events on the text input area for files/images
+      document.getElementById("textInput").addEventListener(
+        "paste",
+        async (e) => {
+          if (!e.clipboardData) return;
+          const items = Array.from(e.clipboardData.items);
+          const hasFile = items.some((i) => i.kind === "file");
+          if (hasFile) {
+            e.preventDefault();
+            const files = await clipboardItemsToFiles(e.clipboardData.items);
+            if (files.length > 0) {
+              handleFiles(files);
+              hideTextInput();
+            }
+          }
+          // Text pastes normally into the textarea — user clicks "Add Text"
+        },
+      );
+
+      async function clipboardItemsToFiles(items) {
+        const files = [];
+        for (const item of items) {
+          if (item.kind === "file") {
+            const file = item.getAsFile
+              ? item.getAsFile()
+              : await item.getType(item.type);
+            if (file) files.push(file);
+          } else if (item.kind === "string" && item.type === "text/plain") {
+            const text = await new Promise((resolve) =>
+              item.getAsString ? item.getAsString(resolve) : resolve("")
+            );
+            if (text && text.trim()) {
+              files.push(
+                new File(
+                  [new Blob([text], { type: "text/plain" })],
+                  "Pasted text.txt",
+                  { type: "text/plain" },
+                ),
+              );
+            }
+          }
+        }
+        return files;
+      }
+
+      // Text input
+      function showTextInput() {
+        document.getElementById("textInputArea").style.display = "block";
+        document.getElementById("textInput").value = "";
+        document.getElementById("textInput").focus();
+      }
+
+      function hideTextInput() {
+        document.getElementById("textInputArea").style.display = "none";
+      }
+
+      function addText() {
+        const text = document.getElementById("textInput").value;
+        if (text && text.trim()) {
+          const name = prompt("Filename:", "text.txt") || "text.txt";
+          handleFiles([
+            new File([new Blob([text], { type: "text/plain" })], name, {
+              type: "text/plain",
+            }),
+          ]);
+          hideTextInput();
+        }
+      }
 
       // Drag and drop handlers
       uploadArea.addEventListener("dragover", (e) => {

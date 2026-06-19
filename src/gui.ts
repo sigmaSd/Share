@@ -90,6 +90,8 @@ export function runGui(options: GuiOptions) {
     #receiveButton!: Button;
     #isReceiveMode: boolean = false;
     #downloadDir: string = "";
+    // verify !
+    #notificationLabel!: Label;
 
     constructor(app: Application, url: string, initialPath?: string) {
       super(app);
@@ -191,6 +193,7 @@ export function runGui(options: GuiOptions) {
       this.#contentBox.append(this.#urlBox);
       this.#contentBox.append(controlsBox);
       this.#contentBox.append(this.#statusIndicator);
+      this.#contentBox.append(this.#notificationLabel);
 
       const clamp = new Clamp();
       clamp.setMaximumSize(450);
@@ -237,6 +240,17 @@ export function runGui(options: GuiOptions) {
       timeout(500, () => {
         this.#urlLabel.setText(originalText);
         this.#urlLabel.getStyleContext().removeClass("success-color");
+        return false;
+      });
+    };
+
+    showNotification = (message: string) => {
+      this.#notificationLabel.setText(message);
+      this.#notificationLabel.getStyleContext().addClass("success-color");
+      this.#notificationLabel.setVisible(true);
+
+      timeout(3000, () => {
+        this.#notificationLabel.setVisible(false);
         return false;
       });
     };
@@ -290,6 +304,10 @@ export function runGui(options: GuiOptions) {
       this.#statusIndicator = new Label("● Sharing Active");
       this.#statusIndicator.getStyleContext().addClass("status-indicator");
       this.#statusIndicator.setHalign(Align.CENTER);
+
+      this.#notificationLabel = new Label("");
+      this.#notificationLabel.setHalign(Align.CENTER);
+      this.#notificationLabel.setVisible(false);
 
       this.#downloadDir = getDownloadDir();
 
@@ -704,8 +722,9 @@ export function runGui(options: GuiOptions) {
     };
   }
 
+  let currentWindow: MainWindow | undefined;
+
   class App extends Application {
-    #win: MainWindow | undefined;
     #url: string;
     #initialPath: string | undefined;
 
@@ -717,12 +736,13 @@ export function runGui(options: GuiOptions) {
     }
 
     onActivateCallback = () => {
-      this.#win = new MainWindow(
+      const win = new MainWindow(
         this,
         this.#url,
         this.#initialPath,
       );
-      this.#win.present();
+      currentWindow = win;
+      win.present();
     };
   }
 
@@ -733,13 +753,14 @@ export function runGui(options: GuiOptions) {
     path: options.path,
     verbose: true,
   });
-  worker.onmessage = (event) => {
-    console.log("[main] received msg:", event.data);
-    switch (event.data.type) {
+
+  worker.addEventListener("message", (event) => {
+    const data = event.data as { type: string; [key: string]: unknown };
+    switch (data.type) {
       case "start": {
         const app = new App(
           "io.github.sigmasd.share",
-          event.data.url,
+          data.url as string,
           options.path,
         );
         unixSignalAdd(
@@ -756,6 +777,14 @@ export function runGui(options: GuiOptions) {
         app.run([]);
         break;
       }
+      case "file-received": {
+        const filePath = data.path as string;
+        const name = filePath.split("/").pop() ?? "";
+        if (currentWindow) {
+          currentWindow.showNotification(`✓ Received: ${name}`);
+        }
+        break;
+      }
     }
-  };
+  });
 }
