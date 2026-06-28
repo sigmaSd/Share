@@ -380,7 +380,7 @@
     function addText() {
       const text = document.getElementById("textInput").value;
       if (text && text.trim()) {
-        const name = prompt("Filename:", "text.txt") || "text.txt";
+        const name = "share_paste.txt";
         handleFiles([
           new File([new Blob([text], { type: "text/plain" })], name, {
             type: "text/plain",
@@ -477,7 +477,8 @@
     }
 
     // Click to upload
-    uploadArea.addEventListener("click", () => {
+    uploadArea.addEventListener("click", (e) => {
+      if (e.target.closest(".select-button")) return;
       fileInput.click();
     });
 
