@@ -19,41 +19,6 @@ function getDownloadDir(): string {
   }
 }
 
-function readClipboard(): { text: string } | { error: string } {
-  const commands: { cmd: string; args: string[]; label: string }[] = [
-    { cmd: "wl-paste", args: [], label: "wl-paste (install wl-clipboard)" },
-    { cmd: "xclip", args: ["-selection", "clipboard", "-o"], label: "xclip" },
-    { cmd: "pbpaste", args: [], label: "pbpaste" },
-  ];
-  for (const { cmd, args } of commands) {
-    try {
-      const out = new Deno.Command(cmd, { args }).outputSync();
-      if (out.success) {
-        const text = new TextDecoder().decode(out.stdout).trim();
-        if (text) return { text };
-      }
-    } catch (e) {
-      if (e instanceof Deno.errors.PermissionDenied) {
-        return { error: "missing --allow-run permission" };
-      }
-    }
-  }
-  const desktop = Deno.env.get("XDG_SESSION_TYPE") ?? "";
-  const hint = desktop === "wayland"
-    ? "install wl-clipboard (e.g. sudo apt install wl-clipboard)"
-    : "install xclip (e.g. sudo apt install xclip)";
-  return { error: `no clipboard tool found — ${hint}` };
-}
-
-function canAccessFile(path: string) {
-  try {
-    Deno.statSync(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function formatShared(label: string, value: string): string {
   const maxLen = 50;
   const display = value.length > maxLen ? value.slice(0, maxLen) + "…" : value;
@@ -237,9 +202,8 @@ export async function runCli(options: CliOptions) {
       }
     }
     console.log();
-    console.log(`  ${dim("s")} toggle sharing    ${dim("v")} paste clipboard`);
-    console.log(`  ${dim("f")} share file        ${dim("t")} share text`);
-    console.log(`  ${dim("r")} toggle receive    ${dim("p")} re-print QR`);
+    console.log(`  ${dim("s")} toggle sharing    ${dim("f")} share file`);
+    console.log(`  ${dim("t")} share text        ${dim("r")} toggle receive`);
     console.log(`  ${dim("q")} quit`);
     console.log();
   }
@@ -325,29 +289,6 @@ export async function runCli(options: CliOptions) {
           printScreen();
           break;
         }
-
-        case "v": {
-          const clip = readClipboard();
-          if ("error" in clip) {
-            notifications.push(`✗ ${clip.error}`);
-            if (notifications.length > 5) notifications.shift();
-          } else if (clip.text.startsWith("file://")) {
-            const filePath = clip.text.replace("file://", "").trim();
-            if (canAccessFile(filePath)) {
-              sendFile(filePath);
-            } else {
-              sendText(clip.text);
-            }
-          } else {
-            sendText(clip.text);
-          }
-          printScreen();
-          break;
-        }
-
-        case "p":
-          printScreen();
-          break;
 
         case "q":
           shutdown("Bye!");
