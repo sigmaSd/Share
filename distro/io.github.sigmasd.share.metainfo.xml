@@ -46,7 +46,7 @@
   <content_rating type="oars-1.1" />
 
   <releases>
-    <release version="2.1.0" date="2026-06-29">
+    <release version="2.1.1" date="2026-06-29">
         <description>
         <ul>
             <li>CLI mode — run entirely from the terminal with --cli flag, without requiring a graphical interface</li>
