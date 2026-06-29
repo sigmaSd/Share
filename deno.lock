@@ -5,7 +5,8 @@
     "jsr:@david/path@0.2": "0.2.0",
     "jsr:@david/which@~0.4.1": "0.4.2",
     "jsr:@libs/qrcode@3.0.1": "3.0.1",
-    "jsr:@sigmasd/gtk@0.17": "0.17.0",
+    "jsr:@sigma/deno-compat@0.23.0": "0.23.0",
+    "jsr:@sigmasd/gtk@0.65": "0.65.0",
     "jsr:@sigmasd/qrpng@~0.1.3": "0.1.3",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
     "jsr:@std/cli@^1.0.30": "1.0.30",
@@ -49,8 +50,14 @@
     "@libs/qrcode@3.0.1": {
       "integrity": "33b861840fbcc0a88498c35d316153e8f82eaeb0714d6b6cf2ab0b133d44527b"
     },
-    "@sigmasd/gtk@0.17.0": {
-      "integrity": "dcba815af68753e0767a33d0ee4973127c044e229c19433f70a1eba8a78460a2"
+    "@sigma/deno-compat@0.23.0": {
+      "integrity": "3e116e19096601c3e078311864b653a207592195ae6a3f634a45931eb1a21481"
+    },
+    "@sigmasd/gtk@0.65.0": {
+      "integrity": "b8a2eb49b07f9b79c00a4c80ad7afc704c306e69775fd4cf3f916ba38344e4b6",
+      "dependencies": [
+        "jsr:@sigma/deno-compat"
+      ]
     },
     "@sigmasd/qrpng@0.1.3": {
       "integrity": "73fac5dc94e23a3082925138549a32712fe167018087d3f2498c86e85d817471"
@@ -123,7 +130,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@libs/qrcode@3.0.1",
-      "jsr:@sigmasd/gtk@0.17",
+      "jsr:@sigmasd/gtk@0.65",
       "jsr:@sigmasd/qrpng@~0.1.3",
       "jsr:@std/cli@^1.0.30",
       "jsr:@std/fs@^1.0.24",

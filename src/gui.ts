@@ -1,23 +1,30 @@
 import {
+  Align,
   Application,
+  ApplicationFlags,
   Box,
   Button,
   Clipboard,
   CssProvider,
   Cursor,
   Display,
+  DragAction,
   DropTarget,
   EventControllerKey,
   FileDialog,
   FileFilter,
   GestureClick,
+  Key,
   Label,
+  License,
   MenuButton,
+  ModifierType,
+  Orientation,
   Picture,
   PopoverMenu,
   StyleContext,
-  unixSignalAdd,
-} from "@sigmasd/gtk/gtk";
+  StyleProviderPriority,
+} from "@sigmasd/gtk/gtk4";
 import {
   AboutDialog,
   AdwApplicationWindow,
@@ -27,17 +34,11 @@ import {
 } from "@sigmasd/gtk/adw";
 import { File as GFile, ListStore, Menu, SimpleAction } from "@sigmasd/gtk/gio";
 import {
-  Align,
-  ApplicationFlags,
-  DragAction,
-  Key,
-  License,
-  ModifierType,
-  Orientation,
   Priority,
+  timeout,
   UnixSignal,
-} from "@sigmasd/gtk/enums";
-import { timeout } from "@sigmasd/gtk/glib";
+  unixSignalAdd,
+} from "@sigmasd/gtk/glib";
 import meta from "../deno.json" with { type: "json" };
 
 export interface GuiOptions {
@@ -158,7 +159,7 @@ export function runGui(options: GuiOptions) {
       StyleContext.addProviderForDisplay(
         Display.getDefault()!,
         cssProvider,
-        Priority.APPLICATION,
+        StyleProviderPriority.APPLICATION,
       );
 
       this.getStyleContext().addClass("main-window");
@@ -498,8 +499,8 @@ export function runGui(options: GuiOptions) {
         null,
         (source, result) => {
           try {
-            const fileObj = source.openFinish(result);
-            const file = new GFile(fileObj.ptr);
+            const file = source.openFinish(result);
+            if (!file) return;
             const filePath = file.getPath();
             const fileName = filePath?.split("/").pop();
 
@@ -525,8 +526,8 @@ export function runGui(options: GuiOptions) {
         null,
         (source, result) => {
           try {
-            const fileObj = source.selectFolderFinish(result);
-            const file = new GFile(fileObj.ptr);
+            const file = source.selectFolderFinish(result);
+            if (!file) return;
             const dirPath = file.getPath();
             const dirName = dirPath?.split("/").pop();
 
