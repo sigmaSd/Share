@@ -9,7 +9,7 @@
   <project_license>MIT</project_license>
 
   <description>
-    <p>Share is a bidirectional file sharing application that works both ways - send files to others or receive files from them.</p>
+    <p>Share is a bidirectional file sharing application that works both ways — send files to others or receive files from them. It offers both a graphical interface (GTK) and a terminal-based CLI mode.</p>
     <p>Features:</p>
     <ul>
       <li>Bidirectional file transfer - both send and receive files</li>
@@ -18,6 +18,7 @@
       <li>Directory uploads - upload/download entire folder structures</li>
       <li>Multiple file uploads - batch upload many files at once</li>
       <li>Share data from the clipboard, automatically detect if the clipboard contains an image, or a text, note that pasting files will only send paths as text (if the app doesn't have read permission), so its better to drop them instead</li>
+      <li>CLI mode — run entirely from the terminal without a graphical interface, useful over SSH or on headless systems</li>
     </ul>
     <p>How it works:</p>
     <ul>
@@ -45,6 +46,15 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="2.1.0" date="2026-06-29">
+        <description>
+        <ul>
+            <li>CLI mode — run entirely from the terminal with --cli flag, without requiring a graphical interface</li>
+            <li>CLI supports file sharing, text sharing, receive mode, and clipboard paste</li>
+            <li>QR code rendered in the terminal using Unicode block characters</li>
+        </ul>
+        </description>
+    </release>
     <release version="2.0.0" date="2026-01-19">
         <description>
         <ul>

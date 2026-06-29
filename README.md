@@ -35,13 +35,42 @@ files:
 - **Multiple file uploads** - Batch upload many files at once (receive mode)
 - **Local network only** - All transfers happen locally, no internet required
 
-## Usage
+## GUI Usage
 
 ```bash
-deno run --reload --allow-all --unstable-raw-imports https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts
+deno run --reload --allow-all --unstable-ffi https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts
 ```
 
-## Keyboard Shortcuts
+## CLI Mode (Terminal)
+
+Run without a graphical interface — useful over SSH, on servers, or in any
+terminal:
+
+```bash
+deno run --reload --allow-all --unstable-ffi https://raw.githubusercontent.com/sigmaSd/qr-share/master/src/main.ts --cli
+```
+
+Options:
+
+- **`--cli`** — Run in terminal mode (no GUI required)
+- **`--port <port>`** — Port to listen on (default: random)
+- **`--path <path>`** — Path to share (file or directory)
+- **`--receive`** — Start in receive mode (only with `--cli`)
+- **`--help`** — Show help message
+
+CLI keyboard shortcuts:
+
+| Key | Action                    |
+| --- | ------------------------- |
+| `s` | Toggle sharing on/off     |
+| `r` | Toggle receive mode       |
+| `f` | Share a file (enter path) |
+| `t` | Share text (enter text)   |
+| `v` | Paste clipboard content   |
+| `p` | Re-print QR code          |
+| `q` | Quit                      |
+
+## Keyboard Shortcuts (GUI)
 
 - **`Ctrl+O`** - Open file to share
 - **`Ctrl+Shift+O`** - Open directory to share
