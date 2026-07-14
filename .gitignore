@@ -4,3 +4,4 @@ flatpak/.flatpak-builder
 .helix
 .vscode
 node_modules
+a

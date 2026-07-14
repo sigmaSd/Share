@@ -52,11 +52,14 @@ deno run --reload --allow-all --unstable-ffi https://raw.githubusercontent.com/s
 
 Options:
 
-- **`--cli`** — Run in terminal mode (no GUI required)
-- **`--port <port>`** — Port to listen on (default: random)
-- **`--path <path>`** — Path to share (file or directory)
-- **`--receive`** — Start in receive mode (only with `--cli`)
-- **`--help`** — Show help message
+- **\`--cli\`** — Run in terminal mode (no GUI required)
+- **\`--port <port>\`** — Port to listen on (default: random)
+- **\`--receive\`** — Start in receive mode (only with \`--cli\`)
+- **\`--help\`** — Show help message
+
+Arguments:
+
+- **\`path\`** — Path to share (file or directory) (optional)
 
 CLI keyboard shortcuts:
 
