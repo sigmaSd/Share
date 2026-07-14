@@ -50,6 +50,7 @@ export async function runCli(options: CliOptions) {
   let isReceiveMode = options.receive;
   const downloadDir = getDownloadDir();
   const notifications: string[] = [];
+  let receivedCount = 0;
   let sharedItem = "";
 
   worker.postMessage({
@@ -125,6 +126,7 @@ export async function runCli(options: CliOptions) {
         case "file-received": {
           const path = event.data.path;
           const name = path.split("/").pop();
+          receivedCount++;
           notifications.push(`✓ Received: ${name}`);
           if (notifications.length > 5) notifications.shift();
           if (typeof printScreen === "function") printScreen();
@@ -194,6 +196,9 @@ export async function runCli(options: CliOptions) {
     }
     if (isReceiveMode) {
       console.log(`  Saving to: ~/${downloadDir.split("/").pop()}`);
+    }
+    if (isReceiveMode && receivedCount > 0) {
+      console.log(`  Total received: ${receivedCount}`);
     }
     if (notifications.length > 0) {
       console.log();

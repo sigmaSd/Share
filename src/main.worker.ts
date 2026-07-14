@@ -79,6 +79,9 @@ if (import.meta.main) {
           );
           await ensureDir(downloadDir);
 
+          let fileCount = 0;
+          let totalSize = 0;
+
           for (const file of files) {
             if (file && file.size > 0) {
               // Use webkitRelativePath if available (for directory uploads)
@@ -96,9 +99,17 @@ if (import.meta.main) {
               const arrayBuffer = await file.arrayBuffer();
               await Deno.writeFile(filePath, new Uint8Array(arrayBuffer));
               log(`[worker] File saved: ${filePath}`);
+              fileCount++;
+              totalSize += file.size;
               self.postMessage({ type: "file-received", path: filePath });
             }
           }
+
+          self.postMessage({
+            type: "transfer-complete",
+            count: fileCount,
+            size: totalSize,
+          });
 
           return new Response("Upload successful", {
             status: 200,

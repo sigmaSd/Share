@@ -13,6 +13,7 @@ import {
   EventControllerKey,
   FileDialog,
   FileFilter,
+  G_TYPE_STRING,
   GestureClick,
   Key,
   Label,
@@ -32,13 +33,15 @@ import {
   HeaderBar,
   ToolbarView,
 } from "@sigmasd/gtk/adw";
-import { File as GFile, ListStore, Menu, SimpleAction } from "@sigmasd/gtk/gio";
+import { ListStore, Menu, SimpleAction } from "@sigmasd/gtk/gio";
 import {
   Priority,
   timeout,
   UnixSignal,
   unixSignalAdd,
 } from "@sigmasd/gtk/glib";
+import { EventLoop } from "@sigmasd/gtk/eventloop";
+import { createSharedArchive } from "./archive.ts";
 import meta from "../deno.json" with { type: "json" };
 
 export interface GuiOptions {
@@ -73,13 +76,13 @@ export function runGui(options: GuiOptions) {
     { type: "module" },
   );
   const qrPath = Deno.makeTempFileSync();
+  let eventLoop: EventLoop | null = null;
 
   class MainWindow extends AdwApplicationWindow {
     #app: Application;
     #url: string;
     #label: Label;
     #picture: Picture;
-    #dropTarget: DropTarget;
     #contentBox: Box;
     #clipboard: Clipboard;
     #urlBox!: Box;
@@ -93,6 +96,7 @@ export function runGui(options: GuiOptions) {
     #downloadDir: string = "";
     // verify !
     #notificationLabel!: Label;
+    #receivedCount: number = 0;
 
     constructor(app: Application, url: string, initialPath?: string) {
       super(app);
@@ -206,13 +210,24 @@ export function runGui(options: GuiOptions) {
       toolbarView.setContent(clamp);
       this.setContent(toolbarView);
 
-      const fileType = GFile.getType();
-      this.#dropTarget = new DropTarget(
-        fileType,
+      const strDrop = new DropTarget(G_TYPE_STRING, DragAction.COPY);
+      strDrop.onTextDrop((text, _x, _y) => {
+        if (!text) return false;
+        this.#onUriDrop(text);
+        return true;
+      });
+      this.addController(strDrop);
+
+      const uriDrop = DropTarget.newForMimeTypes(
+        ["text/uri-list"],
         DragAction.COPY,
       );
-      this.#dropTarget.onDrop((val, x, y) => this.#onDrop(val, x, y));
-      this.addController(this.#dropTarget);
+      uriDrop.onTextDrop((text, _x, _y) => {
+        if (!text) return false;
+        this.#onUriDrop(text);
+        return true;
+      });
+      this.addController(uriDrop);
 
       const keyController = new EventControllerKey();
       keyController.onKeyPressed((k, c, s) => this.#onKeyPressed(k, c, s));
@@ -254,6 +269,29 @@ export function runGui(options: GuiOptions) {
         this.#notificationLabel.setVisible(false);
         return false;
       });
+    };
+
+    notifyFileReceived = (name: string) => {
+      this.#receivedCount++;
+      this.showNotification(`✓ Received: ${name}`);
+      if (this.#isReceiveMode) {
+        this.#statusIndicator.setText(
+          `📥 Received ${this.#receivedCount} file${
+            this.#receivedCount > 1 ? "s" : ""
+          }`,
+        );
+      }
+    };
+
+    notifyTransferComplete = (count: number, size: number) => {
+      const sizeStr = size >= 1048576
+        ? `${(size / 1048576).toFixed(1)} MB`
+        : size >= 1024
+        ? `${(size / 1024).toFixed(1)} KB`
+        : `${size} B`;
+      this.showNotification(
+        `✓ Received ${count} file${count > 1 ? "s" : ""} (${sizeStr})`,
+      );
     };
 
     #createUrlBox = () => {
@@ -369,6 +407,7 @@ export function runGui(options: GuiOptions) {
       this.#isReceiveMode = !this.#isReceiveMode;
 
       if (this.#isReceiveMode) {
+        this.#receivedCount = 0;
         worker.postMessage({
           type: "set-receive-mode",
           enabled: true,
@@ -561,42 +600,37 @@ export function runGui(options: GuiOptions) {
       dialog.present(this);
     };
 
-    #onDrop = (value: Deno.PointerValue, _x: number, _y: number) => {
-      if (!value) return false;
-      const file = new GFile(value);
+    #onUriDrop = async (text: string): Promise<boolean> => {
+      const paths = text.split(/\r?\n/).filter(Boolean).map((line) =>
+        line.startsWith("file://") ? decodeURIComponent(line.slice(7)) : line
+      );
+      if (paths.length === 0) return false;
 
-      let filePath;
-      let fileName;
+      const sharedPath = await this.#sharePaths(paths);
+      if (!sharedPath) return false;
 
-      const path = file.getPath();
-      if (path) {
-        filePath = path;
-        fileName = filePath.split("/").pop() ?? null;
-      } else {
-        const [success, contents] = file.loadContents();
-        if (success) {
-          fileName = "Dropped File";
-          filePath = Deno.makeTempFileSync();
-          Deno.writeFile(
-            filePath,
-            contents,
-          );
-        } else {
-          console.warn("Failed to read contents of the dropped file");
-          return false;
-        }
-      }
-
-      if (!fileName || !filePath) {
-        console.warn("Could not detect filename from this file");
-        return false;
-      }
-
-      this.#label.setText(`file: ${fileName}`);
+      const name = sharedPath.split("/").pop() ?? "";
+      this.#label.setText(
+        paths.length > 1
+          ? `archive: ${name} (${paths.length} files)`
+          : `file: ${name}`,
+      );
       this.#isReceiveMode = false;
       this.#updateSharingUI();
-      worker.postMessage({ type: "file", path: filePath });
+      worker.postMessage({ type: "file", path: sharedPath });
+      if (paths.length > 1) {
+        this.showNotification(`✓ Sharing ${paths.length} files`);
+      }
       return true;
+    };
+
+    #sharePaths = async (paths: string[]): Promise<string | null> => {
+      try {
+        return await createSharedArchive(paths);
+      } catch (e) {
+        console.warn("archive failed:", e);
+        return null;
+      }
     };
 
     #onKeyPressed = (
@@ -666,36 +700,60 @@ export function runGui(options: GuiOptions) {
       }
     };
 
-    #onTextReceived = (
+    #onTextReceived = async (
       clipboard: Clipboard,
       result: Deno.PointerValue,
       mimeType: string,
     ) => {
       const text = clipboard.readTextFinish(result);
-      if (text) {
-        this.#isReceiveMode = false;
-        this.#updateSharingUI();
-        if (
-          mimeType.startsWith("text/uri-list") || text.startsWith("file://")
-        ) {
-          const filePath = text.replace("file://", "").trim();
-          const fileName = filePath.split("/").pop();
-          if (canAccessFile(filePath)) {
-            this.#label.setText(`file: ${fileName || "Pasted file"}`);
-            worker.postMessage({ type: "file", path: filePath });
-          } else {
-            this.#label.setText(`text: ${fileName || "Pasted file"}`);
-            worker.postMessage({ type: "text", content: text });
-          }
-        } else if (mimeType.startsWith("text/plain")) {
-          this.#label.setText(
-            `text: ${text.length > 30 ? (`${text.slice(0, 30)} ...`) : text}`,
-          );
-          worker.postMessage({ type: "text", content: text });
-        }
-      } else {
+      if (!text) {
         console.warn("No text found in clipboard");
+        return;
       }
+
+      this.#isReceiveMode = false;
+      this.#updateSharingUI();
+
+      let paths: string[] | null = null;
+
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+      if (mimeType.startsWith("text/uri-list")) {
+        paths = lines.filter((line) => line.startsWith("file://"))
+          .map((uri) => decodeURIComponent(uri.slice(7)))
+          .filter(canAccessFile);
+      }
+
+      if (!paths || paths.length === 0) {
+        const accessible = lines.filter((l) =>
+          l.startsWith("/") && canAccessFile(l)
+        );
+        if (accessible.length > 0 && accessible.length === lines.length) {
+          paths = accessible;
+        }
+      }
+
+      if (paths && paths.length > 0) {
+        const sharedPath = await this.#sharePaths(paths);
+        if (sharedPath) {
+          const name = sharedPath.split("/").pop() ?? "file";
+          this.#label.setText(
+            paths.length > 1
+              ? `archive: ${name} (${paths.length} files)`
+              : `file: ${name}`,
+          );
+          worker.postMessage({ type: "file", path: sharedPath });
+          if (paths.length > 1) {
+            this.showNotification(`✓ Sharing ${paths.length} files`);
+          }
+          return;
+        }
+      }
+
+      this.#label.setText(
+        `text: ${text.length > 30 ? `${text.slice(0, 30)} ...` : text}`,
+      );
+      worker.postMessage({ type: "text", content: text });
     };
 
     // deno-lint-ignore no-explicit-any
@@ -715,6 +773,7 @@ export function runGui(options: GuiOptions) {
 
     #onCloseRequest = () => {
       worker.postMessage({ type: "stop-sharing" });
+      eventLoop?.stop();
       worker.terminate();
       try {
         Deno.removeSync(qrPath);
@@ -755,7 +814,7 @@ export function runGui(options: GuiOptions) {
     verbose: true,
   });
 
-  worker.addEventListener("message", (event) => {
+  worker.addEventListener("message", async (event) => {
     const data = event.data as { type: string; [key: string]: unknown };
     switch (data.type) {
       case "start": {
@@ -764,6 +823,7 @@ export function runGui(options: GuiOptions) {
           data.url as string,
           options.path,
         );
+        eventLoop = new EventLoop();
         unixSignalAdd(
           UnixSignal.SIGINT,
           () => {
@@ -771,18 +831,27 @@ export function runGui(options: GuiOptions) {
             try {
               Deno.removeSync(qrPath);
             } catch { /* Ignore error if file not found */ }
-            app.quit();
+            eventLoop?.stop();
             return false;
           },
         );
-        app.run([]);
+        await eventLoop.start(app);
         break;
       }
       case "file-received": {
         const filePath = data.path as string;
         const name = filePath.split("/").pop() ?? "";
         if (currentWindow) {
-          currentWindow.showNotification(`✓ Received: ${name}`);
+          currentWindow.notifyFileReceived(name);
+        }
+        break;
+      }
+      case "transfer-complete": {
+        if (currentWindow) {
+          currentWindow.notifyTransferComplete(
+            (data.count as number) || 0,
+            (data.size as number) || 0,
+          );
         }
         break;
       }
