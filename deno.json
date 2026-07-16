@@ -13,6 +13,6 @@
     "@std/http": "jsr:@std/http@^1.1.2",
     "@std/path": "jsr:@std/path@^1.1.6",
     "@libs/qrcode": "jsr:@libs/qrcode@3.1.0",
-    "@zip-js/zip-js": "jsr:@zip-js/zip-js@^2.8.28"
+    "@zip-js/zip-js": "jsr:@zip-js/zip-js@^2.8.30"
   }
 }

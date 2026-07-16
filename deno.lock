@@ -32,8 +32,7 @@
     "jsr:@std/path@^1.1.5": "1.1.6",
     "jsr:@std/path@^1.1.6": "1.1.6",
     "jsr:@std/streams@^1.1.1": "1.1.1",
-    "jsr:@zip-js/zip-js@*": "2.8.28",
-    "jsr:@zip-js/zip-js@^2.8.28": "2.8.28"
+    "jsr:@zip-js/zip-js@^2.8.30": "2.8.30"
   },
   "jsr": {
     "@david/console-static-text@0.3.4": {
@@ -166,8 +165,8 @@
     "@std/streams@1.1.1": {
       "integrity": "92556d350e537e9dce527a6d08f6f15be3ff65e656079dea69d15252187c7613"
     },
-    "@zip-js/zip-js@2.8.28": {
-      "integrity": "5afa512c5837ee01e70d3ec6768faf45c0a903b022a9a6ec3484ca3611f3cc4b"
+    "@zip-js/zip-js@2.8.30": {
+      "integrity": "757963bf9b4f8d9030777fb7ac6ee727972444f9fc4ad33ff4f45693f9f5acb6"
     }
   },
   "workspace": {
@@ -180,7 +179,7 @@
       "jsr:@std/fs@^1.0.24",
       "jsr:@std/http@^1.1.2",
       "jsr:@std/path@^1.1.6",
-      "jsr:@zip-js/zip-js@^2.8.28"
+      "jsr:@zip-js/zip-js@^2.8.30"
     ]
   }
 }
