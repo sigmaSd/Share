@@ -10,16 +10,11 @@ import errorPage from "./ui/error.html" with { type: "text" };
 import uploadPage from "./ui/upload.html" with { type: "text" };
 import stopPage from "./ui/stop.html" with { type: "text" };
 import assert from "node:assert";
+import { getAllInterfaces, getDefaultAddr } from "./addr.ts";
 
 let verbose: boolean = false;
 function log(...args: unknown[]) {
   if (verbose) console.log(...args);
-}
-
-function getLocalAddr() {
-  return Deno.networkInterfaces().filter((int) =>
-    int.name !== "lo" && int.family === "IPv4"
-  ).at(0)?.address || "localhost";
 }
 
 if (import.meta.main) {
@@ -35,14 +30,18 @@ if (import.meta.main) {
     Deno.serve({
       port,
       onListen: async (addr) => {
-        const serverAddr = `http://${getLocalAddr()}:${addr.port}`;
+        const serverAddr = `http://${getDefaultAddr()}:${addr.port}`;
         log("[worker] HTTP server running. Access it at:", serverAddr);
         await Deno.writeFile(
           qrPath,
           qrPng(new TextEncoder().encode(serverAddr)),
         );
         //@ts-ignore worker
-        self.postMessage({ type: "start", url: serverAddr });
+        self.postMessage({
+          type: "start",
+          url: serverAddr,
+          addrs: getAllInterfaces(),
+        });
       },
     }, async (req): Promise<Response> => {
       // Disable caching
@@ -201,7 +200,7 @@ if (import.meta.main) {
   };
 
   //@ts-ignore worker
-  self.onmessage = (event) => {
+  self.onmessage = async (event) => {
     log("[worker] received msg:", event.data);
     switch (event.data.type) {
       case "file":
@@ -243,6 +242,14 @@ if (import.meta.main) {
       case "set-download-dir":
         log("[worker] Setting download directory:", event.data.path);
         downloadDir = event.data.path;
+        break;
+      case "set-url":
+        log("[worker] Regenerating QR for:", event.data.url);
+        await Deno.writeFile(
+          qrPath,
+          qrPng(new TextEncoder().encode(event.data.url)),
+        );
+        self.postMessage({ type: "url-updated", url: event.data.url });
         break;
     }
   };

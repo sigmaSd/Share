@@ -9,6 +9,7 @@ import {
   Cursor,
   Display,
   DragAction,
+  DropDown,
   DropTarget,
   EventControllerKey,
   FileDialog,
@@ -23,6 +24,7 @@ import {
   Orientation,
   Picture,
   PopoverMenu,
+  StringList,
   StyleContext,
   StyleProviderPriority,
 } from "@sigmasd/gtk/gtk4";
@@ -42,6 +44,7 @@ import {
 } from "@sigmasd/gtk/glib";
 import { EventLoop } from "@sigmasd/gtk/eventloop";
 import { createSharedArchive } from "./archive.ts";
+import type { InterfaceAddr } from "./addr.ts";
 import meta from "../deno.json" with { type: "json" };
 
 export interface GuiOptions {
@@ -97,11 +100,21 @@ export function runGui(options: GuiOptions) {
     // verify !
     #notificationLabel!: Label;
     #receivedCount: number = 0;
+    #addrs: InterfaceAddr[] = [];
+    #urls: string[] = [];
+    #dropdown!: DropDown;
 
-    constructor(app: Application, url: string, initialPath?: string) {
+    constructor(
+      app: Application,
+      url: string,
+      addrs: InterfaceAddr[],
+      initialPath?: string,
+    ) {
       super(app);
       this.#app = app;
       this.#url = url;
+      this.#addrs = addrs;
+      this.#urls = this.#addrs.map((a) => this.#buildUrl(a.address));
       this.setTitle("Share");
       this.setDefaultSize(400, 400);
       this.setResizable(false);
@@ -260,6 +273,17 @@ export function runGui(options: GuiOptions) {
       });
     };
 
+    setUrl = (url: string) => {
+      this.#url = url;
+      if (this.#urls.length > 1) {
+        const idx = this.#urls.indexOf(url);
+        if (idx !== -1) this.#dropdown.setSelected(idx);
+      } else {
+        this.#urlLabel.setText(url);
+      }
+      this.#picture.setFilename(qrPath);
+    };
+
     showNotification = (message: string) => {
       this.#notificationLabel.setText(message);
       this.#notificationLabel.getStyleContext().addClass("success-color");
@@ -294,6 +318,14 @@ export function runGui(options: GuiOptions) {
       );
     };
 
+    #buildUrl = (addr: string): string => {
+      try {
+        return `http://${addr}:${new URL(this.#url).port}`;
+      } catch {
+        return this.#url;
+      }
+    };
+
     #createUrlBox = () => {
       this.#urlBox = new Box(Orientation.HORIZONTAL, 10);
       this.#urlBox.setHalign(Align.CENTER);
@@ -318,7 +350,27 @@ export function runGui(options: GuiOptions) {
         this.#showCopyFeedback();
       });
 
-      this.#urlBox.append(this.#urlLabel);
+      if (this.#urls.length > 1) {
+        const entries = this.#addrs.map(
+          (a) => `${a.name} · ${a.address}`,
+        );
+        this.#dropdown = new DropDown(new StringList(entries));
+        this.#dropdown.setSelected(0);
+        this.#dropdown.setTooltipText("Choose network address");
+        this.#dropdown.onSelectedChanged((index) => {
+          const url = this.#urls[index];
+          if (!url) return;
+          this.#url = url;
+          worker.postMessage({ type: "set-url", url });
+        });
+        this.#urlBox.append(this.#dropdown);
+      } else {
+        if (this.#addrs.length === 1) {
+          this.#urlLabel.setTooltipText(this.#addrs[0].name);
+        }
+        this.#urlBox.append(this.#urlLabel);
+      }
+
       this.#urlBox.append(this.#copyButton);
 
       this.#urlBox.setVisible(true);
@@ -786,11 +838,18 @@ export function runGui(options: GuiOptions) {
 
   class App extends Application {
     #url: string;
+    #addrs: InterfaceAddr[];
     #initialPath: string | undefined;
 
-    constructor(appId: string, url: string, initialPath?: string) {
+    constructor(
+      appId: string,
+      url: string,
+      addrs: InterfaceAddr[],
+      initialPath?: string,
+    ) {
       super(appId, ApplicationFlags.NONE);
       this.#url = url;
+      this.#addrs = addrs;
       this.#initialPath = initialPath;
       this.onActivate(() => this.onActivateCallback());
     }
@@ -799,6 +858,7 @@ export function runGui(options: GuiOptions) {
       const win = new MainWindow(
         this,
         this.#url,
+        this.#addrs,
         this.#initialPath,
       );
       currentWindow = win;
@@ -821,6 +881,7 @@ export function runGui(options: GuiOptions) {
         const app = new App(
           "io.github.sigmasd.share",
           data.url as string,
+          (data.addrs as InterfaceAddr[]) ?? [],
           options.path,
         );
         eventLoop = new EventLoop();
@@ -836,6 +897,12 @@ export function runGui(options: GuiOptions) {
           },
         );
         await eventLoop.start(app);
+        break;
+      }
+      case "url-updated": {
+        if (currentWindow) {
+          currentWindow.setUrl(data.url as string);
+        }
         break;
       }
       case "file-received": {
