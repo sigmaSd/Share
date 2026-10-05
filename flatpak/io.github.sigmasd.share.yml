@@ -30,6 +30,7 @@ modules:
 
       - install -Dm644 distro/io.github.sigmasd.share.desktop -t /app/share/applications/
       - install -Dm644 distro/io.github.sigmasd.share.svg -t /app/share/icons/hicolor/scalable/apps/
+      - install -Dm644 distro/io.github.sigmasd.share-symbolic.svg -t /app/share/icons/hicolor/symbolic/apps/
       - install -Dm644 distro/io.github.sigmasd.share.metainfo.xml -t /app/share/metainfo/
 
     sources:
