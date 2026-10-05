@@ -11,6 +11,7 @@ import {
   DragAction,
   DropDown,
   DropTarget,
+  Entry,
   EventControllerKey,
   FileDialog,
   FileFilter,
@@ -30,9 +31,14 @@ import {
 } from "@sigmasd/gtk/gtk4";
 import {
   AboutDialog,
+  ActionRow,
   AdwApplicationWindow,
   Clamp,
   HeaderBar,
+  PreferencesGroup,
+  PreferencesPage,
+  PreferencesWindow,
+  SwitchRow,
   ToolbarView,
 } from "@sigmasd/gtk/adw";
 import { ListStore, Menu, SimpleAction } from "@sigmasd/gtk/gio";
@@ -45,6 +51,12 @@ import {
 import { EventLoop } from "@sigmasd/gtk/eventloop";
 import { createSharedArchive } from "./archive.ts";
 import type { InterfaceAddr } from "./addr.ts";
+import {
+  loadSettings,
+  parsePort,
+  saveSettings,
+  serverPort,
+} from "./settings.ts";
 import meta from "../deno.json" with { type: "json" };
 
 export interface GuiOptions {
@@ -80,6 +92,9 @@ export function runGui(options: GuiOptions) {
   );
   const qrPath = Deno.makeTempFileSync();
   let eventLoop: EventLoop | null = null;
+  // The port the server was last asked to listen on (0 = random)
+  let requestedPort = options.port;
+  let startupNotice: string | null = null;
 
   class MainWindow extends AdwApplicationWindow {
     #app: Application;
@@ -284,15 +299,38 @@ export function runGui(options: GuiOptions) {
       this.#picture.setFilename(qrPath);
     };
 
-    showNotification = (message: string) => {
+    showNotification = (message: string, duration = 3000) => {
       this.#notificationLabel.setText(message);
       this.#notificationLabel.getStyleContext().addClass("success-color");
       this.#notificationLabel.setVisible(true);
 
-      timeout(3000, () => {
+      timeout(duration, () => {
         this.#notificationLabel.setVisible(false);
         return false;
       });
+    };
+
+    onServerRestarted = (url: string, busyPort?: number) => {
+      this.#url = url;
+      this.#urls = this.#addrs.map((a) => this.#buildUrl(a.address));
+      if (this.#urls.length > 1) {
+        // Keep the interface the user picked; the worker drew the QR code
+        // for the default one.
+        const selected = this.#urls[this.#dropdown.getSelected()];
+        if (selected && selected !== url) {
+          this.#url = selected;
+          worker.postMessage({ type: "set-url", url: selected });
+        }
+      }
+      this.setUrl(this.#url);
+
+      const port = new URL(url).port;
+      this.showNotification(
+        busyPort
+          ? `Port ${busyPort} is in use, using ${port} instead`
+          : `✓ Now using port ${port}`,
+        busyPort ? 6000 : 3000,
+      );
     };
 
     notifyFileReceived = (name: string) => {
@@ -495,6 +533,7 @@ export function runGui(options: GuiOptions) {
       menu.append("Open Directory (Ctrl+Shift+O)", "app.open-directory");
       menu.append("Toggle Sharing (Ctrl+T)", "app.toggle-sharing");
       menu.append("Toggle Receive Mode (Ctrl+R)", "app.toggle-receive");
+      menu.append("Preferences (Ctrl+,)", "app.preferences");
       menu.append("About Share", "app.about");
 
       return header;
@@ -546,6 +585,11 @@ export function runGui(options: GuiOptions) {
         ["<primary>r"],
       );
 
+      this.#createAction(
+        "preferences",
+        () => this.#showPreferences(),
+        ["<primary>comma"],
+      );
       this.#createAction("about", () => this.#showAbout());
     };
 
@@ -633,6 +677,88 @@ export function runGui(options: GuiOptions) {
           }
         },
       );
+    };
+
+    #showPreferences = () => {
+      let settings = loadSettings();
+
+      const fixedRow = new SwitchRow();
+      fixedRow.setTitle("Fixed Port");
+      fixedRow.setSubtitle(
+        "Use the same port every time, so it can be allowed in a firewall",
+      );
+      fixedRow.setActive(settings.fixedPort);
+
+      const portEntry = new Entry();
+      portEntry.setText(String(settings.port));
+      portEntry.setValign(Align.CENTER);
+      portEntry.setProperty("width-chars", 6);
+      portEntry.setProperty("max-width-chars", 6);
+      portEntry.setTooltipText("1024–65535, press Enter to apply");
+
+      const portRow = new ActionRow();
+      portRow.setTitle("Port");
+      portRow.addSuffix(portEntry);
+      portRow.setSensitive(settings.fixedPort);
+
+      const group = new PreferencesGroup();
+      group.setTitle("Network");
+      const updateDescription = () => {
+        group.setDescription(
+          settings.fixedPort
+            ? `If a firewall is enabled, allow TCP port ${settings.port}. ` +
+              `With firewalld (Fedora): sudo firewall-cmd --permanent ` +
+              `--add-port=${settings.port}/tcp, then sudo firewall-cmd --reload`
+            : "A random port is picked every time Share starts",
+        );
+      };
+      updateDescription();
+      group.add(fixedRow);
+      group.add(portRow);
+
+      const apply = () => {
+        const port = parsePort(portEntry.getText()) ?? settings.port;
+        const fixedPort = fixedRow.getActive();
+        if (port === settings.port && fixedPort === settings.fixedPort) return;
+        settings = { fixedPort, port };
+        saveSettings(settings);
+        updateDescription();
+
+        const next = serverPort(settings);
+        if (next !== requestedPort) {
+          requestedPort = next;
+          worker.postMessage({ type: "set-port", port: next });
+        }
+      };
+
+      fixedRow.onActiveChanged((active) => {
+        portRow.setSensitive(active);
+        apply();
+      });
+      portEntry.onChanged(() => {
+        if (parsePort(portEntry.getText()) === null) {
+          portEntry.addCssClass("error");
+        } else {
+          portEntry.removeCssClass("error");
+        }
+      });
+      portEntry.onActivate(apply);
+
+      const page = new PreferencesPage();
+      page.add(group);
+
+      const prefs = new PreferencesWindow();
+      prefs.setTitle("Preferences");
+      prefs.setDefaultSize(480, 360);
+      prefs.setProperty("search-enabled", false);
+      prefs.add(page);
+      prefs.setTransientFor(this);
+      prefs.setModal(true);
+      prefs.onCloseRequest(() => {
+        apply();
+        return false;
+      });
+      prefs.present();
     };
 
     #showAbout = () => {
@@ -863,6 +989,7 @@ export function runGui(options: GuiOptions) {
       );
       currentWindow = win;
       win.present();
+      if (startupNotice) win.showNotification(startupNotice, 8000);
     };
   }
 
@@ -878,6 +1005,10 @@ export function runGui(options: GuiOptions) {
     const data = event.data as { type: string; [key: string]: unknown };
     switch (data.type) {
       case "start": {
+        if (data.busyPort) {
+          startupNotice = `Port ${data.busyPort} is in use, ` +
+            `using ${new URL(data.url as string).port} instead`;
+        }
         const app = new App(
           "io.github.sigmasd.share",
           data.url as string,
@@ -897,6 +1028,13 @@ export function runGui(options: GuiOptions) {
           },
         );
         await eventLoop.start(app);
+        break;
+      }
+      case "restarted": {
+        currentWindow?.onServerRestarted(
+          data.url as string,
+          data.busyPort as number | undefined,
+        );
         break;
       }
       case "url-updated": {
