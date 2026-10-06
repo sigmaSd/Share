@@ -121,6 +121,11 @@ export async function runCli(options: CliOptions) {
     worker.addEventListener("message", (event) => {
       switch (event.data.type) {
         case "start":
+          if (event.data.busyPort) {
+            notifications.push(
+              `⚠ Port ${event.data.busyPort} is in use, using a random port`,
+            );
+          }
           resolve(event.data.url);
           break;
         case "file-received": {

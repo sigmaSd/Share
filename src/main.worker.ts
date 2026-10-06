@@ -25,10 +25,27 @@ if (import.meta.main) {
   let isReceiveMode: boolean = false;
   let downloadDir: string | null = null;
   let port = 0;
+  let server: Deno.HttpServer | null = null;
+  let started = false;
+  // Port changes run one after another, so a second change made while the
+  // old server is still shutting down doesn't race the first one.
+  let restarting = Promise.resolve();
 
   const startServer = () => {
+    try {
+      server = serve(port);
+    } catch (e) {
+      // The chosen port is taken (e.g. by another app): don't fail to start,
+      // use a random port and let the UI tell the user.
+      if (!(e instanceof Deno.errors.AddrInUse) || port === 0) throw e;
+      log(`[worker] Port ${port} is in use, using a random port`);
+      server = serve(0, port);
+    }
+  };
+
+  const serve = (listenPort: number, busyPort?: number) =>
     Deno.serve({
-      port,
+      port: listenPort,
       onListen: async (addr) => {
         const serverAddr = `http://${getDefaultAddr()}:${addr.port}`;
         log("[worker] HTTP server running. Access it at:", serverAddr);
@@ -38,10 +55,12 @@ if (import.meta.main) {
         );
         //@ts-ignore worker
         self.postMessage({
-          type: "start",
+          type: started ? "restarted" : "start",
           url: serverAddr,
           addrs: getAllInterfaces(),
+          busyPort,
         });
+        started = true;
       },
     }, async (req): Promise<Response> => {
       // Disable caching
@@ -197,7 +216,6 @@ if (import.meta.main) {
       // This should never happen, but just in case
       return new Response("Internal Server Error", { status: 500, headers });
     });
-  };
 
   //@ts-ignore worker
   self.onmessage = async (event) => {
@@ -223,6 +241,16 @@ if (import.meta.main) {
         if (event.data.verbose) verbose = event.data.verbose;
         startServer();
         break;
+      case "set-port": {
+        const newPort = event.data.port;
+        restarting = restarting.then(async () => {
+          log("[worker] Restarting server on port:", newPort);
+          port = newPort;
+          await server?.shutdown();
+          startServer();
+        });
+        break;
+      }
       case "start-sharing":
         log("[worker] Starting sharing");
         isSharing = true;

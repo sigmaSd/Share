@@ -53,7 +53,8 @@ deno run --reload --allow-all --unstable-ffi https://raw.githubusercontent.com/s
 Options:
 
 - **\`--cli\`** — Run in terminal mode (no GUI required)
-- **\`--port <port>\`** — Port to listen on (default: random)
+- **\`--port <port>\`** — Port to listen on, `0` for random (default: the port
+  set in Preferences, `53318` unless changed)
 - **\`--receive\`** — Start in receive mode (only with \`--cli\`)
 - **\`--help\`** — Show help message
 
@@ -80,6 +81,21 @@ CLI keyboard shortcuts:
 - **`Ctrl+V`** - Paste content (text, images, or file paths)
 - **`Ctrl+T`** - Toggle sharing on/off
 - **`Ctrl+R`** - Toggle receive mode
+- **`Ctrl+,`** - Preferences
 - **`Ctrl+Q/Ctrl+W`** - Quit application
+
+## Firewall
+
+Share listens on port `53318` by default, so it only needs to be allowed once.
+The port can be changed (or set to random) in Preferences. On Fedora and other
+systems using firewalld:
+
+```bash
+sudo firewall-cmd --permanent --add-port=53318/tcp
+sudo firewall-cmd --reload
+```
+
+If the port is already taken by another app, Share falls back to a random port
+and tells you.
 
 <img width="522" height="692" alt="image" src="https://github.com/user-attachments/assets/93e66598-38df-4b0d-890c-1a519d42163d" />
