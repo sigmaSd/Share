@@ -27,6 +27,9 @@ if (import.meta.main) {
   let port = 0;
   let server: Deno.HttpServer | null = null;
   let started = false;
+  // Port changes run one after another, so a second change made while the
+  // old server is still shutting down doesn't race the first one.
+  let restarting = Promise.resolve();
 
   const startServer = () => {
     try {
@@ -238,12 +241,16 @@ if (import.meta.main) {
         if (event.data.verbose) verbose = event.data.verbose;
         startServer();
         break;
-      case "set-port":
-        log("[worker] Restarting server on port:", event.data.port);
-        port = event.data.port;
-        await server?.shutdown();
-        startServer();
+      case "set-port": {
+        const newPort = event.data.port;
+        restarting = restarting.then(async () => {
+          log("[worker] Restarting server on port:", newPort);
+          port = newPort;
+          await server?.shutdown();
+          startServer();
+        });
         break;
+      }
       case "start-sharing":
         log("[worker] Starting sharing");
         isSharing = true;

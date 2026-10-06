@@ -114,6 +114,7 @@ export function runGui(options: GuiOptions) {
     #downloadDir: string = "";
     // verify !
     #notificationLabel!: Label;
+    #notificationId = 0;
     #receivedCount: number = 0;
     #addrs: InterfaceAddr[] = [];
     #urls: string[] = [];
@@ -299,13 +300,36 @@ export function runGui(options: GuiOptions) {
       this.#picture.setFilename(qrPath);
     };
 
+    /** Shows a message under the controls; duration 0 keeps it until replaced. */
     showNotification = (message: string, duration = 3000) => {
+      const id = ++this.#notificationId;
       this.#notificationLabel.setText(message);
       this.#notificationLabel.getStyleContext().addClass("success-color");
       this.#notificationLabel.setVisible(true);
 
+      if (duration === 0) return;
       timeout(duration, () => {
-        this.#notificationLabel.setVisible(false);
+        // Don't hide a newer message that replaced this one
+        if (this.#notificationId === id) {
+          this.#notificationLabel.setVisible(false);
+        }
+        return false;
+      });
+    };
+
+    onPortChangeRequested = (port: number) => {
+      const target = port === 0 ? "a random port" : `port ${port}`;
+      this.showNotification(`Switching to ${target}…`, 0);
+      const id = this.#notificationId;
+      timeout(1000, () => {
+        // Still switching: the old server waits for open connections
+        // (e.g. a download in progress) to finish before it stops.
+        if (this.#notificationId === id) {
+          this.showNotification(
+            `Switching to ${target} once active transfers finish…`,
+            0,
+          );
+        }
         return false;
       });
     };
@@ -728,6 +752,7 @@ export function runGui(options: GuiOptions) {
         if (next !== requestedPort) {
           requestedPort = next;
           worker.postMessage({ type: "set-port", port: next });
+          this.onPortChangeRequested(next);
         }
       };
 
