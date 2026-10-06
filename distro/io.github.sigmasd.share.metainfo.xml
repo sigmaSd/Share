@@ -46,6 +46,16 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="2.4.0" date="2026-10-06">
+        <description>
+        <ul>
+            <li>Use the same port every time (53318 by default) so it can be allowed through a firewall</li>
+            <li>New Preferences window to change the port or go back to a random port</li>
+            <li>Fall back to a random port when the chosen one is already in use</li>
+            <li>New app icon</li>
+        </ul>
+        </description>
+    </release>
     <release version="2.3.0" date="2026-08-04">
         <description>
         <ul>
